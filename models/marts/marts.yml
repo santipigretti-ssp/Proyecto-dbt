@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: fct_ventas_por_ciudad
+    description: >
+      Esta tabla es el corazón del análisis de ventas. Une órdenes, clientes e items 
+      para mostrar el rendimiento económico por ubicación geográfica.
+    columns:
+      - name: ciudad
+        description: "Ciudad donde se realizó la compra."
+      - name: total_pedidos
+        description: "Cantidad de órdenes únicas realizadas en esta ciudad."
+      - name: ingresos_totales
+        description: "Suma de los precios de todos los productos vendidos."
+      - name: gastos_envio_totales
+        description: "Suma de lo pagado en concepto de fletes/logística."

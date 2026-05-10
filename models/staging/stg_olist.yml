@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "Tabla limpia que contiene todas las órdenes de compra de Olist."
+    columns:
+      - name: order_id
+        description: "ID único y aleatorio de la orden (Primary Key)."
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "ID del cliente que realizó la compra (FK para unir con clientes)."
+      - name: order_status
+        description: "Estado actual de la orden (entregado, enviado, cancelado, etc.)."
+
+  - name: stg_customers
+    description: "Datos geográficos y demográficos de los clientes."
+    columns:
+      - name: customer_id
+        description: "ID único del cliente."
+        tests:
+          - unique
+          - not_null
+      - name: ciudad
+        description: "Ciudad de residencia del cliente."
+      - name: estado
+        description: "Estado o provincia de Brasil (siglas de 2 letras)."
+      
+  - name: stg_order_items
+    description: "Detalle de productos, precios y fletes por cada orden."
+    columns:
+      - name: order_id
+        description: "ID de la orden (se repite si hay varios productos)."
+      - name: monto
+        description: "Precio del producto (sin envío)."
+        tests:
+          - not_null
+      - name: costo_envio
+        description: "Valor del flete pagado."
