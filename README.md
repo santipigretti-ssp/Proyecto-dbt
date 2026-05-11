@@ -1,15 +1,16 @@
-Welcome to your new dbt project!
+# Proyecto de Ingeniería de Datos: E-commerce Olist con dbt
 
-### Using the starter project
+Este proyecto implementa un pipeline de transformación de datos (ELT) utilizando **dbt Core** y **Google BigQuery** sobre el dataset público de Olist (Brasil).
 
-Try running the following commands:
-- dbt run
-- dbt test
+## 🛠️ Herramientas utilizadas
+*   **Data Warehouse:** Google BigQuery (Sandbox gratuito).
+*   **Transformación:** dbt Core (v1.x).
+*   **IDE:** VS Code con extensión dbt Power User.
+*   **Lenguaje:** SQL + Jinja.
 
+## 🏗️ Arquitectura de Capas
+1.  **Staging:** Limpieza inicial, renombrado de columnas y casteo de tipos de datos.
+2.  **Marts:** Generación de tablas de hechos (`fct_ventas_por_ciudad`) listas para visualización.
 
-### Resources:
-- Learn more about dbt [in the docs](https://docs.getdbt.com/docs/introduction)
-- Check out [Discourse](https://discourse.getdbt.com/) for commonly asked questions and answers
-- Join the [chat](https://community.getdbt.com/) on Slack for live discussions and support
-- Find [dbt events](https://events.getdbt.com) near you
-- Check out [the blog](https://blog.getdbt.com/) for the latest news on dbt's development and best practices
+## 🧪 Calidad de Datos
+Se implementaron tests de integridad (unique, not_null) para asegurar que los IDs de órdenes y clientes no tengan duplicados ni vacíos.
