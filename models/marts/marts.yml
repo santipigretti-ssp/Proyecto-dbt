@@ -10,7 +10,101 @@ models:
         description: "Ciudad donde se realizó la compra."
       - name: total_pedidos
         description: "Cantidad de órdenes únicas realizadas en esta ciudad."
+        tests:
+          - not_null
       - name: ingresos_totales
         description: "Suma de los precios de todos los productos vendidos."
+        tests:
+          - not_null
       - name: gastos_envio_totales
         description: "Suma de lo pagado en concepto de fletes/logística."
+        tests:
+          - not_null
+
+  - name: fct_ticket_promedio
+    description: >
+      Ticket promedio por estado, calculado sobre órdenes entregadas.
+      Incluye el promedio de cuotas para entender el comportamiento de financiamiento.
+    columns:
+      - name: estado
+        description: "Estado de Brasil del cliente."
+        tests:
+          - not_null
+      - name: total_pedidos
+        description: "Cantidad de órdenes entregadas en el estado."
+        tests:
+          - not_null
+      - name: ticket_promedio
+        description: "Valor promedio pagado por orden en este estado."
+        tests:
+          - not_null
+      - name: promedio_cuotas
+        description: "Promedio de cuotas utilizado en los pagos."
+
+  - name: fct_satisfaccion_por_categoria
+    description: >
+      Puntaje promedio de reseñas agrupado por categoría de producto.
+      Permite identificar qué categorías generan mayor y menor satisfacción.
+    columns:
+      - name: categoria
+        description: "Categoría del producto en inglés."
+        tests:
+          - not_null
+      - name: total_resenas
+        description: "Cantidad de reseñas recibidas para esta categoría."
+        tests:
+          - not_null
+      - name: puntaje_promedio
+        description: "Puntaje promedio (1-5) de todas las reseñas de la categoría."
+        tests:
+          - not_null
+      - name: resenas_positivas
+        description: "Cantidad de reseñas con puntaje 4 o 5."
+      - name: resenas_negativas
+        description: "Cantidad de reseñas con puntaje 1 o 2."
+
+  - name: fct_tiempo_entrega
+    description: >
+      Análisis de tiempos de entrega por estado. Solo incluye órdenes
+      efectivamente entregadas con fecha de entrega registrada.
+    columns:
+      - name: estado
+        description: "Estado de Brasil del cliente."
+        tests:
+          - not_null
+      - name: pedidos_entregados
+        description: "Total de órdenes entregadas en el estado."
+        tests:
+          - not_null
+      - name: dias_entrega_promedio
+        description: "Promedio de días entre compra y entrega."
+        tests:
+          - not_null
+      - name: entrega_mas_rapida
+        description: "Menor cantidad de días registrada para una entrega."
+      - name: entrega_mas_lenta
+        description: "Mayor cantidad de días registrada para una entrega."
+
+  - name: fct_metodos_pago
+    description: >
+      Distribución de métodos de pago utilizados en órdenes entregadas.
+      Incluye volumen, ticket promedio y uso de cuotas por método.
+    columns:
+      - name: tipo_pago
+        description: "Método de pago (credit_card, boleto, voucher, debit_card)."
+        tests:
+          - not_null
+      - name: total_pedidos
+        description: "Cantidad de órdenes pagadas con este método."
+        tests:
+          - not_null
+      - name: volumen_total
+        description: "Suma total facturada con este método de pago."
+        tests:
+          - not_null
+      - name: ticket_promedio
+        description: "Valor promedio por transacción."
+      - name: promedio_cuotas
+        description: "Promedio de cuotas usado en este método."
+      - name: pedidos_en_cuotas
+        description: "Cantidad de pedidos que usaron más de 1 cuota."

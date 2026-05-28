@@ -1,0 +1,14 @@
+mi_proyecto_datos:
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: YOUR_GCP_PROJECT_ID       # e.g. mi-proyecto-dbt
+      dataset: dbt_staging               # BigQuery dataset where models will be written
+      keyfile: /path/to/your/keyfile.json
+      location: EU                       # or US depending on your BigQuery region
+      threads: 1
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      priority: interactive
+  target: dev

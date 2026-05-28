@@ -7,3 +7,6 @@ keys/*.json
 dbt-env/
 dbt_internal_packages/
 datasets_kaggle/
+venv/
+.vscode/
+.env

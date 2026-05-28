@@ -11,8 +11,13 @@ models:
           - not_null
       - name: customer_id
         description: "ID del cliente que realizó la compra (FK para unir con clientes)."
+        tests:
+          - not_null
       - name: order_status
         description: "Estado actual de la orden (entregado, enviado, cancelado, etc.)."
+        tests:
+          - accepted_values:
+              values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
 
   - name: stg_customers
     description: "Datos geográficos y demográficos de los clientes."
@@ -32,9 +37,87 @@ models:
     columns:
       - name: order_id
         description: "ID de la orden (se repite si hay varios productos)."
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: product_id
+        description: "ID del producto comprado."
+        tests:
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
       - name: monto
         description: "Precio del producto (sin envío)."
         tests:
           - not_null
       - name: costo_envio
         description: "Valor del flete pagado."
+
+  - name: stg_reviews
+    description: "Reseñas y puntajes de los clientes para cada orden."
+    columns:
+      - name: review_id
+        description: "ID único de la reseña."
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "ID de la orden evaluada."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: puntaje
+        description: "Puntaje del 1 al 5 otorgado por el cliente."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4, 5]
+              quote: false
+
+  - name: stg_payments
+    description: "Pagos realizados por orden, incluyendo tipo y cuotas."
+    columns:
+      - name: order_id
+        description: "ID de la orden pagada."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: tipo_pago
+        description: "Método de pago (credit_card, boleto, voucher, debit_card)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+      - name: valor_pago
+        description: "Monto pagado en esta transacción."
+        tests:
+          - not_null
+
+  - name: stg_products
+    description: "Catálogo de productos con categoría en inglés y dimensiones físicas."
+    columns:
+      - name: product_id
+        description: "ID único del producto."
+        tests:
+          - unique
+          - not_null
+      - name: categoria_en
+        description: "Categoría del producto traducida al inglés."
+
+  - name: stg_sellers
+    description: "Vendedores registrados en la plataforma Olist."
+    columns:
+      - name: seller_id
+        description: "ID único del vendedor."
+        tests:
+          - unique
+          - not_null
+      - name: ciudad
+        description: "Ciudad del vendedor."
+      - name: estado
+        description: "Estado de Brasil del vendedor."
