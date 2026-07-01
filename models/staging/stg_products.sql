@@ -15,8 +15,8 @@ renamed as (
         cast(p.product_length_cm as int64)          as largo_cm,
         cast(p.product_height_cm as int64)          as alto_cm,
         cast(p.product_width_cm as int64)           as ancho_cm
-    from source p
-    left join categories c using (product_category_name)
+    from source as p
+    left join categories as c on p.product_category_name = c.product_category_name
 )
 
 select * from renamed

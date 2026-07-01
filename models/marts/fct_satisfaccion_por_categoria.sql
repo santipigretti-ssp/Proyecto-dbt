@@ -19,9 +19,9 @@ final as (
         round(avg(r.puntaje), 2)                    as puntaje_promedio,
         countif(r.puntaje >= 4)                     as resenas_positivas,
         countif(r.puntaje <= 2)                     as resenas_negativas
-    from reviews r
-    join items i      on r.order_id = i.order_id
-    join products p   on i.product_id = p.product_id
+    from reviews as r
+    inner join items as i      on r.order_id = i.order_id
+    inner join products as p   on i.product_id = p.product_id
     group by 1
 )
 

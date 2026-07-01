@@ -21,8 +21,8 @@ final as (
         max(
             date_diff(date(o.delivered_at), date(o.purchased_at), day)
         )                                                                   as entrega_mas_lenta
-    from orders o
-    join customers c on o.customer_id = c.customer_id
+    from orders as o
+    inner join customers as c on o.customer_id = c.customer_id
     where o.order_status = 'delivered'
       and o.delivered_at is not null
     group by 1

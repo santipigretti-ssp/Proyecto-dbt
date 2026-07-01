@@ -28,9 +28,9 @@ final as (
         count(distinct o.order_id)          as total_pedidos,
         round(avg(p.valor_total_orden), 2)  as ticket_promedio,
         round(avg(p.max_cuotas), 1)         as promedio_cuotas
-    from orders o
-    join customers c  on o.customer_id = c.customer_id
-    join pagos_por_orden p on o.order_id = p.order_id
+    from orders as o
+    inner join customers as c  on o.customer_id = c.customer_id
+    inner join pagos_por_orden as p on o.order_id = p.order_id
     where o.order_status = 'delivered'
     group by 1
 )

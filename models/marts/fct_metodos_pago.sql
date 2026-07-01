@@ -16,8 +16,8 @@ final as (
         round(avg(p.valor_pago), 2)         as ticket_promedio,
         round(avg(p.cuotas), 1)             as promedio_cuotas,
         countif(p.cuotas > 1)               as pedidos_en_cuotas
-    from payments p
-    join orders o on p.order_id = o.order_id
+    from payments as p
+    inner join orders as o on p.order_id = o.order_id
     where o.order_status = 'delivered'
     group by 1
 )
