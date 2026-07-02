@@ -7,6 +7,7 @@ renamed as (
         order_id,
         order_item_id,
         product_id,
+        seller_id,
         price as monto,
         freight_value as costo_envio
     from source

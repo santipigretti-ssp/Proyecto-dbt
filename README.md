@@ -71,6 +71,9 @@ BigQuery (raw)
 │  fct_satisfaccion_por_categoria             │
 │  fct_tiempo_entrega                         │
 │  fct_metodos_pago                           │
+│  fct_rendimiento_vendedores                 │
+│  fct_entrega_puntualidad_satisfaccion       │
+│  fct_rentabilidad_categoria_flete           │
 └─────────────────────────────────────────────┘
       │
       ▼
@@ -88,12 +91,15 @@ BigQuery (raw)
 | `fct_satisfaccion_por_categoria` | ¿Qué categorías de productos tienen mejor y peor puntaje? |
 | `fct_tiempo_entrega` | ¿Cuánto tarda la entrega por estado? ¿Dónde hay más demoras? |
 | `fct_metodos_pago` | ¿Qué métodos de pago prefieren los clientes? ¿Cuánto mueven? |
+| `fct_rendimiento_vendedores` | ¿Qué vendedores generan más ingresos, entregan más rápido/a tiempo y reciben mejores reseñas? |
+| `fct_entrega_puntualidad_satisfaccion` | ¿Cuánto cae la satisfacción del cliente a medida que la entrega se atrasa respecto a lo estimado? |
+| `fct_rentabilidad_categoria_flete` | ¿En qué categorías el costo de flete (según peso/volumen) erosiona más los ingresos? |
 
 ---
 
 ## Tests de calidad de datos
 
-El proyecto cuenta con **49 tests** distribuidos en tres capas (staging, intermediate y marts):
+El proyecto cuenta con **67 tests** distribuidos en tres capas (staging, intermediate y marts):
 
 - `unique` y `not_null` en todas las claves primarias, incluyendo el grano de cada mart
 - `accepted_values` en columnas categóricas (`order_status`, `puntaje`, `tipo_pago`)
@@ -178,7 +184,7 @@ python upload_to_bigquery.py
 
 ```bash
 dbt run      # construye todos los modelos
-dbt test     # ejecuta los 49 tests de calidad
+dbt test     # ejecuta los 67 tests de calidad
 ```
 
 ### 8. Explorar la documentación
@@ -205,7 +211,7 @@ mi_proyecto_datos/
 │   │   ├── int_*.sql            # Agregaciones reutilizables entre marts
 │   │   └── intermediate.yml     # Tests y docs de intermediate
 │   └── marts/
-│       ├── fct_*.sql            # 5 tablas de hechos
+│       ├── fct_*.sql            # 8 tablas de hechos
 │       └── marts.yml            # Tests y docs de marts
 ├── upload_to_bigquery.py        # Script de carga de CSVs
 ├── packages.yml                 # Dependencias dbt (dbt-utils)

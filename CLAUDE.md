@@ -15,7 +15,7 @@ dbt run                          # build all models
 dbt run --select staging         # build only staging layer
 dbt run --select marts           # build only mart layer
 dbt run --select stg_orders      # build a single model
-dbt test                         # run all 49 tests
+dbt test                         # run all 67 tests
 dbt test --select stg_reviews    # run tests for a single model
 dbt deps                         # install packages (dbt-utils)
 dbt docs generate && dbt docs serve  # generate and open docs at localhost:8080
@@ -72,3 +72,5 @@ models/marts/fct_*.sql         →  materialized as tables
 - `sources.yml` points to `database: mi-proyecto-dbt`, `schema: dbt_staging` — update these if using a different GCP project
 - `raw_category_translation` has a BOM character in its source CSV; the join in `stg_products` works because pandas strips it on upload
 - `raw_reviews` CSV has embedded newlines in free-text fields; `upload_to_bigquery.py` handles this with `csv.reader(newline='')` instead of pandas
+- `stg_order_items.seller_id` and `stg_orders.fecha_estimada_entrega` were added specifically to support seller-level and on-time-delivery marts (`fct_rendimiento_vendedores`, `fct_entrega_puntualidad_satisfaccion`) — both columns exist in the raw tables but weren't exposed in staging before
+- `olist_geolocation_dataset.csv` exists in `datasets_kaggle/` but is not loaded into BigQuery yet (no `raw_geolocation` source, not handled by `upload_to_bigquery.py`) — needed for any future geospatial mart

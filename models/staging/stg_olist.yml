@@ -18,6 +18,8 @@ models:
         tests:
           - accepted_values:
               values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+      - name: fecha_estimada_entrega
+        description: "Fecha estimada de entrega informada al cliente al momento de la compra."
 
   - name: stg_customers
     description: "Datos geográficos y demográficos de los clientes."
@@ -51,6 +53,13 @@ models:
           - relationships:
               to: ref('stg_products')
               field: product_id
+      - name: seller_id
+        description: "ID del vendedor que despachó este ítem."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_sellers')
+              field: seller_id
       - name: monto
         description: "Precio del producto (sin envío)."
         tests:

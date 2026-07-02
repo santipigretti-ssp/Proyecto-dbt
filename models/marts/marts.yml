@@ -117,3 +117,101 @@ models:
         description: "Promedio de cuotas usado en este método."
       - name: pedidos_en_cuotas
         description: "Cantidad de pedidos que usaron más de 1 cuota."
+
+  - name: fct_rendimiento_vendedores
+    description: >
+      Scorecard por vendedor: ingresos generados, velocidad de entrega,
+      cumplimiento de la fecha estimada y satisfacción promedio de sus
+      compradores. Solo considera ítems de órdenes entregadas.
+    columns:
+      - name: seller_id
+        description: "ID único del vendedor (grano de la tabla)."
+        tests:
+          - unique
+          - not_null
+      - name: ciudad
+        description: "Ciudad del vendedor."
+      - name: estado
+        description: "Estado de Brasil del vendedor."
+      - name: total_pedidos
+        description: "Cantidad de órdenes entregadas que incluyeron algún ítem de este vendedor."
+        tests:
+          - not_null
+      - name: ingresos_totales
+        description: "Suma de los montos de los ítems vendidos por este vendedor."
+        tests:
+          - not_null
+      - name: ticket_promedio
+        description: "Valor promedio por ítem vendido."
+      - name: dias_entrega_promedio
+        description: "Promedio de días entre compra y entrega para los ítems de este vendedor."
+      - name: tasa_atraso
+        description: "Proporción de ítems entregados después de la fecha estimada al cliente."
+      - name: puntaje_promedio
+        description: "Promedio del puntaje de reseñas (1-5) de las órdenes que incluyeron ítems de este vendedor."
+
+  - name: fct_entrega_puntualidad_satisfaccion
+    description: >
+      Cruza la puntualidad de la entrega (real vs. fecha estimada) con la
+      satisfacción del cliente, agrupado por estado. Permite ver cuánto
+      cae el puntaje de reviews a medida que aumenta el atraso.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - estado
+            - bucket_puntualidad
+    columns:
+      - name: estado
+        description: "Estado de Brasil del cliente."
+        tests:
+          - not_null
+      - name: bucket_puntualidad
+        description: "Categoría de puntualidad: Adelantado, A tiempo, Tarde (1-3 dias) o Muy tarde (4+ dias), según fecha_entrega vs. fecha_estimada_entrega."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Adelantado', 'A tiempo', 'Tarde (1-3 dias)', 'Muy tarde (4+ dias)']
+      - name: total_pedidos
+        description: "Cantidad de órdenes entregadas en esta combinación de estado y puntualidad."
+        tests:
+          - not_null
+      - name: puntaje_promedio
+        description: "Puntaje promedio (1-5) de las reseñas de estas órdenes."
+      - name: tasa_resenas_negativas
+        description: "Proporción de reseñas con puntaje 1 o 2 sobre el total de reseñas recibidas."
+
+  - name: fct_rentabilidad_categoria_flete
+    description: >
+      Analiza cuánto erosiona el costo de flete a los ingresos según la
+      categoría de producto y su peso facturable (mayor entre peso real y
+      peso volumétrico). Solo considera ítems de órdenes entregadas.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - categoria
+            - bucket_peso
+    columns:
+      - name: categoria
+        description: "Categoría del producto en inglés."
+        tests:
+          - not_null
+      - name: bucket_peso
+        description: "Rango de peso facturable del producto: Liviano (<500g), Medio (500g-2kg), Pesado (2kg-5kg) o Muy pesado (5kg+)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Liviano (<500g)', 'Medio (500g-2kg)', 'Pesado (2kg-5kg)', 'Muy pesado (5kg+)']
+      - name: total_items
+        description: "Cantidad de ítems vendidos en esta combinación de categoría y rango de peso."
+        tests:
+          - not_null
+      - name: ingresos_totales
+        description: "Suma de los montos de los productos vendidos."
+        tests:
+          - not_null
+      - name: gastos_envio_totales
+        description: "Suma de los fletes pagados."
+        tests:
+          - not_null
+      - name: ratio_flete_precio
+        description: "Proporción del flete total sobre los ingresos totales de la combinación (a mayor valor, más erosiona el margen)."
