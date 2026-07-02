@@ -22,6 +22,7 @@ final as (
     from orders as o
     inner join customers as c on o.customer_id = c.customer_id
     inner join items as i on o.order_id = i.order_id
+    where o.order_status = 'delivered'
     group by 1, 2
 )
 

@@ -33,5 +33,7 @@ models:
   mi_proyecto_datos:
     staging:
       +materialized: view
+    intermediate:
+      +materialized: view
     marts:
       +materialized: table

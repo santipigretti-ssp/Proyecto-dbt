@@ -5,8 +5,8 @@ with source as (
 renamed as (
     select
         seller_id,
-        seller_city     as ciudad,
-        seller_state    as estado
+        seller_city as ciudad,
+        seller_state as estado
     from source
 )
 

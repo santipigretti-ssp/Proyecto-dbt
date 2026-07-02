@@ -3,8 +3,13 @@ version: 2
 models:
   - name: fct_ventas_por_ciudad
     description: >
-      Esta tabla es el corazón del análisis de ventas. Une órdenes, clientes e items 
+      Esta tabla es el corazón del análisis de ventas. Une órdenes, clientes e items
       para mostrar el rendimiento económico por ubicación geográfica.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - ciudad
+            - estado
     columns:
       - name: ciudad
         description: "Ciudad donde se realizó la compra."
@@ -29,6 +34,7 @@ models:
       - name: estado
         description: "Estado de Brasil del cliente."
         tests:
+          - unique
           - not_null
       - name: total_pedidos
         description: "Cantidad de órdenes entregadas en el estado."
@@ -49,6 +55,7 @@ models:
       - name: categoria
         description: "Categoría del producto en inglés."
         tests:
+          - unique
           - not_null
       - name: total_resenas
         description: "Cantidad de reseñas recibidas para esta categoría."
@@ -71,6 +78,7 @@ models:
       - name: estado
         description: "Estado de Brasil del cliente."
         tests:
+          - unique
           - not_null
       - name: pedidos_entregados
         description: "Total de órdenes entregadas en el estado."
@@ -93,6 +101,7 @@ models:
       - name: tipo_pago
         description: "Método de pago (credit_card, boleto, voucher, debit_card)."
         tests:
+          - unique
           - not_null
       - name: total_pedidos
         description: "Cantidad de órdenes pagadas con este método."

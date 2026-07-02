@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: int_pagos_por_orden
+    description: >
+      Consolida los pagos de stg_payments a nivel de orden (una fila por order_id),
+      sumando todos los pagos y tomando el máximo de cuotas. Una orden puede tener
+      múltiples métodos de pago (ej. voucher + tarjeta de crédito).
+    columns:
+      - name: order_id
+        description: "ID de la orden (grano de la tabla)."
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: valor_total_orden
+        description: "Suma de todos los pagos asociados a la orden."
+        tests:
+          - not_null
+      - name: max_cuotas
+        description: "Mayor cantidad de cuotas entre los pagos de la orden."

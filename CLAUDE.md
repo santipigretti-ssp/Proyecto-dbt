@@ -15,7 +15,7 @@ dbt run                          # build all models
 dbt run --select staging         # build only staging layer
 dbt run --select marts           # build only mart layer
 dbt run --select stg_orders      # build a single model
-dbt test                         # run all 39 tests
+dbt test                         # run all 49 tests
 dbt test --select stg_reviews    # run tests for a single model
 dbt deps                         # install packages (dbt-utils)
 dbt docs generate && dbt docs serve  # generate and open docs at localhost:8080
@@ -50,16 +50,20 @@ datasets_kaggle/*.csv
       ↓ upload_to_bigquery.py
 BigQuery: raw_* tables (dbt_staging)
       ↓ sources.yml (source: olist_raw)
-models/staging/stg_*.sql  →  materialized as views
+models/staging/stg_*.sql       →  materialized as views
       ↓ ref()
-models/marts/fct_*.sql    →  materialized as tables
+models/intermediate/int_*.sql  →  materialized as views
+      ↓ ref()
+models/marts/fct_*.sql         →  materialized as tables
 ```
 
 **Staging layer** (`models/staging/`) — one model per raw table. Responsibilities: column renaming to Spanish business names, type casting (timestamps, ints), deduplication (`stg_reviews` uses `ROW_NUMBER()` to keep the latest review per `review_id`), and joining `raw_category_translation` inside `stg_products`.
 
-**Marts layer** (`models/marts/`) — all prefixed `fct_`. Each mart answers a specific business question and joins only from staging models via `ref()`, never directly from sources.
+**Intermediate layer** (`models/intermediate/`) — reusable aggregations shared across marts, e.g. `int_pagos_por_orden` (payments rolled up to one row per `order_id`), so marts don't duplicate the same grouping logic.
 
-**Testing** (`models/staging/stg_olist.yml`, `models/marts/marts.yml`) — `unique`/`not_null` on PKs, `accepted_values` on categoricals (`order_status`, `puntaje`, `tipo_pago`), `relationships` for FK integrity (order_id, product_id), `not_null` on mart metrics.
+**Marts layer** (`models/marts/`) — all prefixed `fct_`. Each mart answers a specific business question and joins only from staging/intermediate models via `ref()`, never directly from sources.
+
+**Testing** (`models/staging/stg_olist.yml`, `models/intermediate/intermediate.yml`, `models/marts/marts.yml`) — `unique`/`not_null` on PKs (including each mart's grain), `accepted_values` on categoricals (`order_status`, `puntaje`, `tipo_pago`), `relationships` for FK integrity (order_id, product_id), `not_null` on mart metrics.
 
 ## Key Conventions
 

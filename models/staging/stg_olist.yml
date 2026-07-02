@@ -27,11 +27,15 @@ models:
         tests:
           - unique
           - not_null
+      - name: id_unico_cliente
+        description: "ID estable del cliente real; un mismo cliente puede tener varios customer_id (uno por orden)."
+        tests:
+          - not_null
       - name: ciudad
         description: "Ciudad de residencia del cliente."
       - name: estado
         description: "Estado o provincia de Brasil (siglas de 2 letras)."
-      
+
   - name: stg_order_items
     description: "Detalle de productos, precios y fletes por cada orden."
     columns:
@@ -87,6 +91,8 @@ models:
           - relationships:
               to: ref('stg_orders')
               field: order_id
+      - name: secuencia_pago
+        description: "Número de secuencia del pago dentro de la orden (una orden puede tener varios pagos)."
       - name: tipo_pago
         description: "Método de pago (credit_card, boleto, voucher, debit_card)."
         tests:

@@ -57,6 +57,14 @@ BigQuery (raw)
       │
       ▼
 ┌─────────────────────────────────────────────┐
+│             INTERMEDIATE (views)             │
+│  int_pagos_por_orden                        │
+│                                             │
+│  · Agregaciones reutilizables entre marts   │
+└─────────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────┐
 │                MARTS (tables)               │
 │  fct_ventas_por_ciudad                      │
 │  fct_ticket_promedio                        │
@@ -85,9 +93,9 @@ BigQuery (raw)
 
 ## Tests de calidad de datos
 
-El proyecto cuenta con **39 tests** distribuidos en dos capas:
+El proyecto cuenta con **49 tests** distribuidos en tres capas (staging, intermediate y marts):
 
-- `unique` y `not_null` en todas las claves primarias
+- `unique` y `not_null` en todas las claves primarias, incluyendo el grano de cada mart
 - `accepted_values` en columnas categóricas (`order_status`, `puntaje`, `tipo_pago`)
 - `relationships` para validar integridad referencial entre modelos (FK checks)
 - `not_null` en métricas críticas de los marts
@@ -100,7 +108,7 @@ El proyecto cuenta con **39 tests** distribuidos en dos capas:
 
 - Python 3.9+
 - Cuenta de Google Cloud con BigQuery habilitado
-- Archivo de credenciales de service account (`.json`)
+- gcloud CLI autenticado (Application Default Credentials) o, alternativamente, un archivo de credenciales de service account (`.json`)
 
 ### 2. Clonar el repositorio
 
@@ -131,7 +139,10 @@ Copiar el archivo de ejemplo y completar con tus credenciales:
 cp profiles.example.yml ~/.dbt/profiles.yml
 ```
 
-Editar `~/.dbt/profiles.yml` con tu `project`, `dataset` y ruta al `keyfile`.
+Editar `~/.dbt/profiles.yml` con tu `project` y `dataset`. Por defecto usa `method: oauth`
+(Application Default Credentials), así que no requiere un `keyfile`; alcanza con haber
+corrido `gcloud auth application-default login`. El archivo incluye, comentada, la
+alternativa con `service-account` + `keyfile` por si la preferís.
 
 ### 6. Cargar los datos crudos
 
@@ -167,7 +178,7 @@ python upload_to_bigquery.py
 
 ```bash
 dbt run      # construye todos los modelos
-dbt test     # ejecuta los 38 tests de calidad
+dbt test     # ejecuta los 49 tests de calidad
 ```
 
 ### 8. Explorar la documentación
@@ -190,6 +201,9 @@ mi_proyecto_datos/
 │   ├── staging/
 │   │   ├── stg_*.sql            # 7 modelos de staging
 │   │   └── stg_olist.yml        # Tests y docs de staging
+│   ├── intermediate/
+│   │   ├── int_*.sql            # Agregaciones reutilizables entre marts
+│   │   └── intermediate.yml     # Tests y docs de intermediate
 │   └── marts/
 │       ├── fct_*.sql            # 5 tablas de hechos
 │       └── marts.yml            # Tests y docs de marts
