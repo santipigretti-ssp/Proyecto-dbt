@@ -13,3 +13,4 @@ sources:
       - name: raw_payments
       - name: raw_sellers
       - name: raw_category_translation
+      - name: raw_geolocation

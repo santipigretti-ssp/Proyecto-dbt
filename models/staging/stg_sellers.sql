@@ -6,7 +6,8 @@ renamed as (
     select
         seller_id,
         seller_city as ciudad,
-        seller_state as estado
+        seller_state as estado,
+        cast(seller_zip_code_prefix as int64) as cp_vendedor
     from source
 )
 

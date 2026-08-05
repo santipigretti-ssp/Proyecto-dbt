@@ -28,6 +28,7 @@ TABLES = {
     "raw_sellers":              "datasets_kaggle/olist_sellers_dataset.csv",
     "raw_category_translation": "datasets_kaggle/product_category_name_translation.csv",
     "raw_reviews":              "datasets_kaggle/olist_order_reviews_dataset.csv",
+    "raw_geolocation":          "datasets_kaggle/olist_geolocation_dataset.csv",
 }
 
 job_config = bigquery.LoadJobConfig(
@@ -36,7 +37,7 @@ job_config = bigquery.LoadJobConfig(
 )
 
 for table_name, csv_path in TABLES.items():
-    print(f"Uploading {csv_path} → {DATASET}.{table_name} ...", end=" ", flush=True)
+    print(f"Uploading {csv_path} -> {DATASET}.{table_name} ...", end=" ", flush=True)
     if table_name == "raw_reviews":
         # comments contain embedded newlines inside quoted fields — csv.reader
         # with newline='' is the only parser that handles multiline fields correctly

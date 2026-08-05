@@ -17,7 +17,12 @@ models:
         description: "Estado actual de la orden (entregado, enviado, cancelado, etc.)."
         tests:
           - accepted_values:
-              values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+              arguments:
+                values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+      - name: fecha_aprobacion_pago
+        description: "Momento en que se aprobó el pago. Cierra el tramo de procesamiento (compra → aprobación)."
+      - name: fecha_despacho_courier
+        description: "Momento en que el vendedor entregó el paquete al transportista. Es la frontera que separa la responsabilidad del vendedor (handling) de la del courier (tránsito)."
       - name: fecha_estimada_entrega
         description: "Fecha estimada de entrega informada al cliente al momento de la compra."
 
@@ -37,6 +42,8 @@ models:
         description: "Ciudad de residencia del cliente."
       - name: estado
         description: "Estado o provincia de Brasil (siglas de 2 letras)."
+      - name: cp_cliente
+        description: "Prefijo de código postal del cliente (primeros dígitos, sin ceros a la izquierda). Usado para unir con stg_geolocation."
 
   - name: stg_order_items
     description: "Detalle de productos, precios y fletes por cada orden."
@@ -45,21 +52,24 @@ models:
         description: "ID de la orden (se repite si hay varios productos)."
         tests:
           - relationships:
-              to: ref('stg_orders')
-              field: order_id
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
       - name: product_id
         description: "ID del producto comprado."
         tests:
           - relationships:
-              to: ref('stg_products')
-              field: product_id
+              arguments:
+                to: ref('stg_products')
+                field: product_id
       - name: seller_id
         description: "ID del vendedor que despachó este ítem."
         tests:
           - not_null
           - relationships:
-              to: ref('stg_sellers')
-              field: seller_id
+              arguments:
+                to: ref('stg_sellers')
+                field: seller_id
       - name: monto
         description: "Precio del producto (sin envío)."
         tests:
@@ -68,27 +78,39 @@ models:
         description: "Valor del flete pagado."
 
   - name: stg_reviews
-    description: "Reseñas y puntajes de los clientes para cada orden."
+    description: >
+      Reseñas y puntajes de los clientes. GRANO: (review_id, order_id), no review_id solo.
+      El raw trae 99.224 filas y 99.224 pares distintos: no hay duplicados que limpiar.
+      Sí hay 789 review_id que cubren más de una orden y 547 órdenes con más de una reseña;
+      ambas cosas son legítimas del negocio. El fan-out por orden se resuelve colapsando a
+      nivel orden en fct_pedidos, no descartando filas acá.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - review_id
+              - order_id
     columns:
       - name: review_id
-        description: "ID único de la reseña."
+        description: "ID de la reseña. NO es único por sí solo: 789 reseñas cubren más de una orden."
         tests:
-          - unique
           - not_null
       - name: order_id
         description: "ID de la orden evaluada."
         tests:
           - not_null
           - relationships:
-              to: ref('stg_orders')
-              field: order_id
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
       - name: puntaje
         description: "Puntaje del 1 al 5 otorgado por el cliente."
         tests:
           - not_null
           - accepted_values:
-              values: [1, 2, 3, 4, 5]
-              quote: false
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
 
   - name: stg_payments
     description: "Pagos realizados por orden, incluyendo tipo y cuotas."
@@ -98,8 +120,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('stg_orders')
-              field: order_id
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
       - name: secuencia_pago
         description: "Número de secuencia del pago dentro de la orden (una orden puede tener varios pagos)."
       - name: tipo_pago
@@ -107,7 +130,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+              arguments:
+                values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
       - name: valor_pago
         description: "Monto pagado en esta transacción."
         tests:
@@ -136,3 +160,26 @@ models:
         description: "Ciudad del vendedor."
       - name: estado
         description: "Estado de Brasil del vendedor."
+      - name: cp_vendedor
+        description: "Prefijo de código postal del vendedor (primeros dígitos, sin ceros a la izquierda). Usado para unir con stg_geolocation."
+
+  - name: stg_geolocation
+    description: >
+      Coordenadas promedio (lat/lng) por prefijo de código postal brasileño.
+      El dataset crudo tiene ~1M filas (muchas coordenadas por prefijo); esta
+      tabla promedia a una fila por cp_prefix y se materializa como tabla para
+      no recalcular esa agregación en cada consulta.
+    columns:
+      - name: cp_prefix
+        description: "Prefijo de código postal (grano de la tabla)."
+        tests:
+          - unique
+          - not_null
+      - name: lat_promedio
+        description: "Latitud promedio de las coordenadas registradas para este prefijo."
+        tests:
+          - not_null
+      - name: lng_promedio
+        description: "Longitud promedio de las coordenadas registradas para este prefijo."
+        tests:
+          - not_null
