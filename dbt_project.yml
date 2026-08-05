@@ -23,6 +23,16 @@ clean-targets:         # directories to be removed by `dbt clean`
   - "dbt_packages"
 
 
+# Supuestos de negocio parametrizados.
+# El dataset de Olist NO trae la comisión que cobra la plataforma, así que la
+# modelamos como supuesto explícito en vez de esconderlo dentro del SQL.
+# Se puede sobrescribir sin tocar los modelos:
+#   dbt run --vars '{take_rate_comision: 0.18}'
+vars:
+  take_rate_comision: 0.15      # comisión estimada sobre el precio del producto
+  take_rate_tarifa_pago: 0.03   # costo estimado de procesamiento de pagos sobre GMV
+
+
 # Configuring models
 # Full documentation: https://docs.getdbt.com/docs/configuring-models
 

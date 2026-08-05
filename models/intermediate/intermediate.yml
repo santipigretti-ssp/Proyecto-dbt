@@ -13,8 +13,9 @@ models:
           - unique
           - not_null
           - relationships:
-              to: ref('stg_orders')
-              field: order_id
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
       - name: valor_total_orden
         description: "Suma de todos los pagos asociados a la orden."
         tests:
