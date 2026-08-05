@@ -9,4 +9,13 @@ dbt_internal_packages/
 datasets_kaggle/
 venv/
 .vscode/
+.claude/
 .env
+
+# Artefactos de sincronización de Google Drive: ante un conflicto, Drive duplica la
+# carpeta agregándole " 2" al nombre, lo que esquiva los patrones de arriba.
+* 2/
+* 2.*
+
+# macOS
+.DS_Store
