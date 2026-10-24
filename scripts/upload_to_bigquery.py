@@ -1,5 +1,6 @@
 import csv
 import os
+import sys
 from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
@@ -11,7 +12,8 @@ os.chdir(ROOT)  # relative paths (datasets_kaggle/, keys/) resolve from any cwd
 load_dotenv(ROOT / ".env")  # loads .env file if present
 
 PROJECT  = os.getenv("GCP_PROJECT", "your-gcp-project-id")
-DATASET  = os.getenv("GCP_DATASET", "dbt_staging")
+DATASET  = os.getenv("GCP_DATASET", "olist_raw")
+LOCATION = os.getenv("GCP_LOCATION", "EU")
 KEY_FILE = os.getenv("GCP_KEYFILE")  # optional — leave unset to use gcloud ADC
 
 # Auth: service account key file if provided, otherwise Application Default Credentials
@@ -39,6 +41,11 @@ job_config = bigquery.LoadJobConfig(
     autodetect=True,
 )
 
+# a load job fails if the target dataset does not exist yet
+dataset = bigquery.Dataset(f"{PROJECT}.{DATASET}")
+dataset.location = LOCATION
+client.create_dataset(dataset, exists_ok=True)
+
 for table_name, csv_path in TABLES.items():
     print(f"Uploading {csv_path} -> {DATASET}.{table_name} ...", end=" ", flush=True)
     if table_name == "raw_reviews":
@@ -52,13 +59,18 @@ for table_name, csv_path in TABLES.items():
         rows = [row for row in all_rows if len(row) == len(headers)]
         df = pd.DataFrame(rows, columns=headers)
     else:
-        total_lines = sum(1 for _ in open(csv_path)) - 1
+        with open(csv_path, encoding="utf-8") as f:
+            total_lines = sum(1 for _ in f) - 1
         df = pd.read_csv(csv_path, on_bad_lines="skip")
+
+    # a skipped row is silent data loss downstream: stop instead of loading a partial table
     skipped = total_lines - len(df)
-    skip_pct = skipped / total_lines * 100
+    if skipped:
+        sys.exit(f"\nERROR: {skipped} malformed rows in {csv_path}; nothing loaded for this table.")
+
     table_ref = f"{PROJECT}.{DATASET}.{table_name}"
     job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
     job.result()
-    print(f"done ({len(df):,} rows uploaded, {skipped} skipped [{skip_pct:.1f}%])")
+    print(f"done ({len(df):,} rows)")
 
 print("\nAll tables uploaded successfully.")

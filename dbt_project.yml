@@ -1,16 +1,7 @@
-
-# Name your project! Project names should contain only lowercase characters
-# and underscores. A good package name should reflect your organization's
-# name or the intended use of these models
 name: 'mi_proyecto_datos'
 version: '1.0.0'
-
-# This setting configures which "profile" dbt uses for this project.
 profile: 'mi_proyecto_datos'
 
-# These configurations specify where dbt should look for different types of files.
-# The `model-paths` config, for example, states that models in this project can be
-# found in the "models/" directory. You probably won't need to change these!
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
@@ -18,32 +9,29 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
-clean-targets:         # directories to be removed by `dbt clean`
+clean-targets:
   - "target"
   - "dbt_packages"
 
-
-# Supuestos de negocio parametrizados.
-# El dataset de Olist NO trae la comisión que cobra la plataforma, así que la
-# modelamos como supuesto explícito en vez de esconderlo dentro del SQL.
-# Se puede sobrescribir sin tocar los modelos:
-#   dbt run --vars '{take_rate_comision: 0.18}'
 vars:
+  # Dataset de BigQuery donde scripts/upload_to_bigquery.py carga las tablas raw_*.
+  raw_dataset: olist_raw
+
+  # Supuestos de negocio de agg_take_rate. El dataset no trae la comisión que cobra la
+  # plataforma, así que se declara acá en vez de esconderla en el SQL. Se sobrescribe con:
+  #   dbt build --select agg_take_rate --vars '{take_rate_comision: 0.18}'
   take_rate_comision: 0.15      # comisión estimada sobre el precio del producto
   take_rate_tarifa_pago: 0.03   # costo estimado de procesamiento de pagos sobre GMV
 
-
-# Configuring models
-# Full documentation: https://docs.getdbt.com/docs/configuring-models
-
-# In this example config, we tell dbt to build all models in the example/
-# directory as views. These settings can be overridden in the individual model
-# files using the `{{ config(...) }}` macro.
+# Cada capa va a su propio dataset (ver macros/generate_schema_name.sql).
 models:
   mi_proyecto_datos:
     staging:
+      +schema: olist_staging
       +materialized: view
     intermediate:
+      +schema: olist_intermediate
       +materialized: view
     marts:
+      +schema: olist_marts
       +materialized: table

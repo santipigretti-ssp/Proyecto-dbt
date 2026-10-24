@@ -2,15 +2,27 @@ version: 2
 
 sources:
   - name: olist_raw
-    database: mi-proyecto-dbt  # <--- CAMBIA ESTO por tu ID de Google Cloud
-    schema: dbt_staging       # <--- El nombre de tu dataset en BigQuery
+    description: >
+      CSVs del dataset público Olist Brazilian E-Commerce (Kaggle), cargados sin
+      transformar por scripts/upload_to_bigquery.py.
+    database: "{{ target.project }}"
+    schema: "{{ var('raw_dataset') }}"
     tables:
       - name: raw_orders
+        description: "Una fila por orden: estado y los cinco timestamps del ciclo de vida."
       - name: raw_customers
+        description: "Una fila por customer_id (uno por orden); customer_unique_id identifica a la persona."
       - name: raw_order_items
-      - name: raw_products
-      - name: raw_reviews
+        description: "Una fila por ítem de orden, con precio y flete."
       - name: raw_payments
+        description: "Una fila por transacción de pago; una orden puede tener varias."
+      - name: raw_reviews
+        description: "Reseñas de clientes. Grano (review_id, order_id)."
+      - name: raw_products
+        description: "Catálogo de productos con categoría en portugués y dimensiones físicas."
       - name: raw_sellers
+        description: "Vendedores con ciudad, estado y prefijo postal."
       - name: raw_category_translation
+        description: "Traducción portugués → inglés de las categorías de producto."
       - name: raw_geolocation
+        description: "~1M coordenadas lat/lng por prefijo postal (varias por prefijo)."

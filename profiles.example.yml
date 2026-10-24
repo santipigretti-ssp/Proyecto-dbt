@@ -2,11 +2,11 @@ mi_proyecto_datos:
   outputs:
     dev:
       type: bigquery
-      method: oauth                      # uses Application Default Credentials (gcloud auth application-default login)
+      method: oauth                      # Application Default Credentials (gcloud auth application-default login)
       project: YOUR_GCP_PROJECT_ID       # e.g. mi-proyecto-dbt
-      dataset: dbt_staging               # BigQuery dataset where models will be written
-      location: EU                       # or US depending on your BigQuery region
-      threads: 1
+      dataset: olist_dev                 # fallback only: each layer sets its own dataset in dbt_project.yml
+      location: EU                       # must match the region of the raw dataset
+      threads: 4
       job_execution_timeout_seconds: 300
       job_retries: 1
       priority: interactive

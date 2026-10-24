@@ -11,6 +11,9 @@ datasets_kaggle/
 .claude/
 .env
 
+# Entregables exportados (PDF, zips): se generan a partir de docs/ y no se versionan
+docs/entregables/
+
 # Artefactos de sincronización de Google Drive: ante un conflicto, Drive duplica la
 # carpeta agregándole " 2" al nombre, lo que esquiva los patrones de arriba.
 * 2/
