@@ -274,14 +274,14 @@ cd mi_proyecto_datos
 ### 3. Crear y activar el entorno virtual
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
 ```
 
 ### 4. Instalar dependencias
 
 ```bash
-pip install dbt-bigquery==1.10.2
+pip install -r requirements.txt
 dbt deps
 ```
 
@@ -325,7 +325,7 @@ Dejá `GCP_KEYFILE` sin definir en `.env` y el script usa tus credenciales de `g
 
 Luego ejecutá:
 ```bash
-python upload_to_bigquery.py
+python scripts/upload_to_bigquery.py
 ```
 
 ### 7. Ejecutar el pipeline
@@ -361,7 +361,7 @@ mi_proyecto_datos/
 │   └── marts/
 │       ├── fct_*.sql            # 14 tablas de hechos
 │       └── marts.yml            # Tests y docs de marts
-├── upload_to_bigquery.py        # Script de carga de CSVs
+├── scripts/upload_to_bigquery.py # Script de carga de CSVs
 ├── packages.yml                 # Dependencias dbt (dbt-utils)
 ├── profiles.example.yml         # Plantilla de configuración
 └── dbt_project.yml              # Configuración del proyecto

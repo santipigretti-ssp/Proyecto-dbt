@@ -4,10 +4,9 @@ dbt_packages/
 dbt_modules/
 logs/
 keys/*.json
-dbt-env/
 dbt_internal_packages/
 datasets_kaggle/
-venv/
+.venv/
 .vscode/
 .claude/
 .env

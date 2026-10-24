@@ -6,9 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All dbt commands must be run from the project root with the venv active:
 
-```bash
-source venv/bin/activate
+```powershell
+.\.venv\Scripts\Activate.ps1     # Windows (macOS/Linux: source .venv/bin/activate)
 ```
+
+First-time setup: `python -m venv .venv`, activate, `pip install -r requirements.txt`, `dbt deps`.
 
 ```bash
 dbt run                          # build all models
@@ -25,7 +27,7 @@ dbt clean                        # remove target/ and dbt_packages/
 To load raw CSVs into BigQuery:
 
 ```bash
-python upload_to_bigquery.py
+python scripts/upload_to_bigquery.py
 ```
 
 ## Authentication
@@ -39,31 +41,20 @@ gcloud config set project mi-proyecto-dbt
 
 The dbt profile (`~/.dbt/profiles.yml`) uses `method: oauth`. The upload script reads `GCP_PROJECT` and `GCP_DATASET` from `.env` (copy `.env.example` to get started).
 
-## Windows / Google Drive gotchas
+## Location
 
-This repo lives on a Google Drive–synced path (`G:\Mi unidad\...`), which causes two failures that
-look like something else entirely:
+This repo lives on **local disk** (`C:\Users\<user>\dev\mi_proyecto_datos`), not in Google Drive. It used
+to live in `G:\Mi unidad\...`, and Drive sync caused three confusing failures: SSL handshake drops on every
+BigQuery call (Drive stalls the read of certifi's `cacert.pem`), a macOS venv synced onto Windows, and
+`dbt_packages/` silently losing files (symptom: `'dict object' has no attribute
+'test_unique_combination_of_columns'`; fix: `dbt deps`). **Do not move the repo back into a synced folder**;
+back it up through git (`origin` on GitHub) instead. If those symptoms reappear, check the location first.
 
-1. **`SSLError(SSLEOFError ... UNEXPECTED_EOF_WHILE_READING)` on every BigQuery call.** urllib3
-   reads certifi's `cacert.pem` *after* opening the socket, and the Drive virtual filesystem stalls
-   that read long enough for Google to drop the handshake. It is **not** a firewall/antivirus/network
-   problem — it reproduces on any network, and `curl`/stdlib `urllib` work fine (they use the Windows
-   cert store). Fix: copy the bundle to local disk and export before running dbt:
-   ```
-   REQUESTS_CA_BUNDLE=C:\Users\<user>\.certs\cacert.pem
-   SSL_CERT_FILE=C:\Users\<user>\.certs\cacert.pem
-   ```
-2. **`mi_proyecto_datos/venv/` is a macOS venv synced from another machine** and is unusable on
-   Windows (its shebangs point at `/Users/...`). Use `dbt-env/` at the repo *parent* instead:
-   `../dbt-env/Scripts/dbt.exe`.
-3. **`dbt_packages/` silently loses files to Drive sync.** Symptom: `Compilation Error ... 'dict
-   object' has no attribute 'test_unique_combination_of_columns'` even though `dbt_packages/dbt_utils/`
-   exists — the folder is there but most of `macros/generic_tests/` is missing. Fix: `dbt deps`.
-   If tests that passed yesterday fail today with a "macro does not exist" error and nothing in
-   the code changed, this is why — check for `dbt_packages 2/`-style duplicate folders too.
+Layout: `models/` `tests/` `macros/` `seeds/` `snapshots/` `analyses/` (dbt), `scripts/` (ingestion),
+`docs/` (docs + `docs/entregables/` deliverables), `datasets_kaggle/` and `keys/` (local only, gitignored).
 
-Also on Windows: `upload_to_bigquery.py` prints ASCII `->` rather than `→`, because the default
-`cp1252` console encoding raises `UnicodeEncodeError` on the arrow.
+Also on Windows: `scripts/upload_to_bigquery.py` prints ASCII `->` rather than the arrow, because the default
+`cp1252` console encoding raises `UnicodeEncodeError` on it.
 
 ## Architecture
 
@@ -73,7 +64,7 @@ Also on Windows: `upload_to_bigquery.py` prints ASCII `->` rather than `→`, be
 
 ```
 datasets_kaggle/*.csv
-      ↓ upload_to_bigquery.py
+      ↓ scripts/upload_to_bigquery.py
 BigQuery: raw_* tables (dbt_staging)
       ↓ sources.yml (source: olist_raw)
 models/staging/stg_*.sql       →  materialized as views

@@ -1,11 +1,14 @@
 import csv
 import os
+from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-load_dotenv()  # loads .env file if present
+ROOT = Path(__file__).resolve().parent.parent
+os.chdir(ROOT)  # relative paths (datasets_kaggle/, keys/) resolve from any cwd
+load_dotenv(ROOT / ".env")  # loads .env file if present
 
 PROJECT  = os.getenv("GCP_PROJECT", "your-gcp-project-id")
 DATASET  = os.getenv("GCP_DATASET", "dbt_staging")
