@@ -1,0 +1,26 @@
+version: 2
+
+exposures:
+  - name: dashboard_olist
+    label: Olist e-commerce dashboard
+    type: dashboard
+    maturity: low
+    description: >
+      Dashboard de Looker Studio en cuatro páginas (resumen ejecutivo, operación,
+      geografía, categorías y vendedores). El diseño de cada gráfico está en
+      docs/dashboard_guide.md.
+    owner:
+      name: Santi Pigretti
+    depends_on:
+      - ref('rpt_resumen_ejecutivo')
+      - ref('agg_ventas_mensual')
+      - ref('agg_take_rate')
+      - ref('agg_operacion_mensual')
+      - ref('agg_puntualidad_satisfaccion')
+      - ref('fct_pedidos')
+      - ref('agg_estados_cliente')
+      - ref('agg_rutas_logisticas')
+      - ref('agg_categorias')
+      - ref('agg_vendedores')
+      - ref('agg_metodos_pago')
+      - ref('agg_cohortes_retencion')
