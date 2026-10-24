@@ -20,8 +20,8 @@ renamed as (
 -- una orden (un cliente evalúa junto lo que compró junto) y 547 órdenes con más de
 -- una reseña. Ambas cosas son legítimas del negocio, no suciedad.
 --
--- Antes acá había un ROW_NUMBER() que se quedaba con una fila por review_id: hacía
--- pasar el test `unique` pero descartaba 814 vínculos reseña-orden válidos, y encima
--- no resolvía el fan-out por orden, que es el que rompe los agregados. El fan-out se
--- maneja donde corresponde: colapsando a nivel orden en los modelos que agregan.
+-- Por eso NO se deduplica acá: un ROW_NUMBER() por review_id haría pasar un test
+-- `unique` pero descartaría 814 vínculos reseña-orden válidos, y además no resolvería
+-- el fan-out por orden, que es el que rompe los agregados. El fan-out se maneja donde
+-- corresponde: colapsando a nivel orden en fct_pedidos.
 select * from renamed

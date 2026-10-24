@@ -65,7 +65,7 @@ final as (
         -- cuántos meses de historia posterior alcanzó a tener esta cohorte dentro del
         -- dataset: si meses_desde_primera_compra se acerca a este número, la celda está
         -- censurada por corte de datos y no por comportamiento del cliente
-        date_diff((select ultimo_mes from fin_dataset), a.cohorte_mes, month) as meses_observables
+        date_diff((select fd.ultimo_mes from fin_dataset as fd), a.cohorte_mes, month) as meses_observables
     from actividad as a
     inner join tamano_cohorte as t on a.cohorte_mes = t.cohorte_mes
 )

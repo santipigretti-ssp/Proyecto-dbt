@@ -56,8 +56,8 @@ items_por_orden as (
         max(g.distancia_km)           as distancia_km,
         -- vendedor principal: el del ítem de mayor precio (el 98,7% de las órdenes tiene
         -- un solo vendedor, así que el desempate casi nunca importa)
-        array_agg(i.seller_id order by i.monto desc, i.order_item_id limit 1)[offset(0)]
-                                      as seller_id_principal
+        array_agg(i.seller_id order by i.monto desc, i.order_item_id asc limit 1)[offset(0)]
+            as seller_id_principal
     from items as i
     left join items_geo as g
         on i.order_id = g.order_id and i.order_item_id = g.order_item_id
@@ -94,8 +94,10 @@ base as (
             p.valor_total_orden,
             i.ingresos_productos + i.gastos_envio
         )                                           as valor_pagado,
-        p.valor_total_orden is null
-            and i.ingresos_productos is not null    as valor_pagado_imputado,
+        (
+            p.valor_total_orden is null
+            and i.ingresos_productos is not null
+        )                                           as valor_pagado_imputado,
         p.max_cuotas,
         i.distancia_km,
 

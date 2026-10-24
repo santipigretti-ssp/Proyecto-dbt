@@ -9,7 +9,10 @@ with payments as (
 ),
 
 pedidos as (
-    select order_id, mes_compra from {{ ref('fct_pedidos') }}
+    select
+        order_id,
+        mes_compra
+    from {{ ref('fct_pedidos') }}
     where fue_entregado
 ),
 

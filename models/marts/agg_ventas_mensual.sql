@@ -10,7 +10,10 @@ with pedidos as (
 ),
 
 clientes as (
-    select id_unico_cliente, cohorte_mes from {{ ref('dim_clientes') }}
+    select
+        id_unico_cliente,
+        cohorte_mes
+    from {{ ref('dim_clientes') }}
 ),
 
 mensual as (
@@ -89,7 +92,7 @@ final as (
 
         -- primer y último mes están truncados por corte del dataset: marcarlos evita
         -- mostrar una "caída" que es artefacto y no negocio
-        mes in ((select min(mes) from mensual), (select max(mes) from mensual)) as es_mes_parcial
+        mes in ((select min(m.mes) from mensual as m), (select max(m.mes) from mensual as m)) as es_mes_parcial
     from con_comparacion
 )
 

@@ -39,16 +39,21 @@ ventas as (
     group by 1
 ),
 
+ingresos_por_categoria as (
+    select
+        seller_id,
+        categoria,
+        sum(ingresos_productos) as ingresos
+    from items
+    where fue_entregado
+    group by 1, 2
+),
+
 categoria_principal as (
     select
         seller_id,
-        array_agg(categoria order by ingresos desc, categoria limit 1)[offset(0)] as categoria_principal
-    from (
-        select seller_id, categoria, sum(ingresos_productos) as ingresos
-        from items
-        where fue_entregado
-        group by 1, 2
-    )
+        array_agg(categoria order by ingresos desc, categoria asc limit 1)[offset(0)] as categoria_principal
+    from ingresos_por_categoria
     group by 1
 ),
 
@@ -97,11 +102,11 @@ cancelaciones as (
 rankeado as (
     select
         *,
-        row_number() over (order by ingresos_productos desc, seller_id)        as ranking,
+        row_number() over (order by ingresos_productos desc, seller_id asc)    as ranking,
         count(*) over ()                                                        as total_vendedores,
         sum(ingresos_productos) over ()                                         as ingresos_globales,
         sum(ingresos_productos) over (
-            order by ingresos_productos desc, seller_id
+            order by ingresos_productos desc, seller_id asc
             rows between unbounded preceding and current row
         )                                                                       as ingresos_acumulados
     from ventas

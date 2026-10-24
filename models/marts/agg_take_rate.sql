@@ -35,8 +35,9 @@ final as (
         -- la comisión se cobra sobre la mercadería, no sobre el flete
         round(ingresos_productos * {{ comision }}, 2)                       as ingreso_comision_estimado,
         round(gmv_total * {{ tarifa_pago }}, 2)                             as costo_procesamiento_pagos,
-        round(ingresos_productos * {{ comision }}
-              - gmv_total * {{ tarifa_pago }}, 2)                           as margen_plataforma_estimado,
+        round(
+            ingresos_productos * {{ comision }} - gmv_total * {{ tarifa_pago }}, 2
+        )                                                                   as margen_plataforma_estimado,
         round(safe_divide(
             ingresos_productos * {{ comision }} - gmv_total * {{ tarifa_pago }},
             gmv_total

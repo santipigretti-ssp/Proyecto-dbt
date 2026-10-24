@@ -26,8 +26,8 @@ agregado as (
     select
         id_unico_cliente,
         -- ubicación de la compra más reciente del cliente
-        array_agg(ciudad_cliente order by fecha_compra desc, order_id limit 1)[offset(0)] as ciudad,
-        array_agg(estado_cliente order by fecha_compra desc, order_id limit 1)[offset(0)] as estado,
+        array_agg(ciudad_cliente order by fecha_compra desc, order_id asc limit 1)[offset(0)] as ciudad,
+        array_agg(estado_cliente order by fecha_compra desc, order_id asc limit 1)[offset(0)] as estado,
         count(*)                                                   as pedidos_totales,
         countif(fue_entregado)                                     as frecuencia_pedidos,
         round(coalesce(sum(if(fue_entregado, valor_pagado, null)), 0), 2) as monetario_total_pagado,
@@ -42,7 +42,7 @@ final as (
     select
         a.*,
         a.frecuencia_pedidos > 0 as tiene_compra_entregada,
-        date_diff((select fecha_max from fecha_referencia), a.ultima_compra, day) as recencia_dias,
+        date_diff((select fr.fecha_max from fecha_referencia as fr), a.ultima_compra, day) as recencia_dias,
         case
             when a.frecuencia_pedidos > 1 then 'Recurrente'
             when a.frecuencia_pedidos = 1 then 'Único'

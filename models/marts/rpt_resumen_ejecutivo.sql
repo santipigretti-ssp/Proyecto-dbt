@@ -16,7 +16,8 @@ clientes as (
 ),
 
 entregados as (
-    select * from pedidos where fue_entregado
+    select * from pedidos
+    where fue_entregado
 ),
 
 -- grano: orden entregada
@@ -48,20 +49,22 @@ metricas_pedidos as (
 -- versión sin sesgo de supervivencia: sobre todas las órdenes que debían llegar al
 -- cliente, incluidas las canceladas y las que quedaron en tránsito
 metricas_ontime_global as (
-    select round(safe_divide(
-        countif(entregado_a_tiempo),
-        count(*)
-    ), 4) as tasa_entrega_a_tiempo_global
+    select
+        round(safe_divide(
+            countif(entregado_a_tiempo),
+            count(*)
+        ), 4) as tasa_entrega_a_tiempo_global
     from pedidos
     where order_status not in ('created', 'approved', 'invoiced', 'processing')
 ),
 
 -- grano: cliente único con al menos una orden entregada
 metricas_clientes as (
-    select round(safe_divide(
-        countif(segmento_cliente = 'Recurrente'),
-        countif(tiene_compra_entregada)
-    ), 4) as tasa_clientes_recurrentes
+    select
+        round(safe_divide(
+            countif(segmento_cliente = 'Recurrente'),
+            countif(tiene_compra_entregada)
+        ), 4) as tasa_clientes_recurrentes
     from clientes
 ),
 

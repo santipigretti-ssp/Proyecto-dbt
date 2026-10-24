@@ -13,24 +13,28 @@ with rango as (
 
 fechas as (
     select dia
-    from rango,
-    unnest(generate_date_array(fecha_min, fecha_max)) as dia
+    from rango as r
+    cross join unnest(generate_date_array(r.fecha_min, r.fecha_max)) as dia
+),
+
+nombres_dia as (
+    -- format_date('%A') devuelve el nombre en inglés y BigQuery no tiene locale
+    select ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'] as nombres
 ),
 
 final as (
     select
-        dia                                            as fecha,
-        extract(year from dia)                         as anio,
-        extract(month from dia)                        as mes_num,
-        format_date('%Y-%m', dia)                      as anio_mes,
-        date_trunc(dia, month)                         as primer_dia_mes,
-        extract(quarter from dia)                      as trimestre,
-        extract(dayofweek from dia)                    as dia_semana_num,
-        -- format_date('%A') devuelve el nombre en inglés y BigQuery no tiene locale
-        ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-            [offset(extract(dayofweek from dia) - 1)]  as dia_semana,
-        extract(dayofweek from dia) in (1, 7)          as es_fin_de_semana
-    from fechas
+        f.dia                                            as fecha,
+        extract(year from f.dia)                         as anio,
+        extract(month from f.dia)                        as mes_num,
+        format_date('%Y-%m', f.dia)                      as anio_mes,
+        date_trunc(f.dia, month)                         as primer_dia_mes,
+        extract(quarter from f.dia)                      as trimestre,
+        extract(dayofweek from f.dia)                    as dia_semana_num,
+        n.nombres[offset(extract(dayofweek from f.dia) - 1)] as dia_semana,
+        extract(dayofweek from f.dia) in (1, 7)          as es_fin_de_semana
+    from fechas as f
+    cross join nombres_dia as n
 )
 
 select * from final

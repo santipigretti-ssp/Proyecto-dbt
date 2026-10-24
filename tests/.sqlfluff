@@ -1,0 +1,6 @@
+[sqlfluff]
+# Los tests singulares apilan subconsultas escalares con union all, una comparación por
+# línea, para que se lean como una tabla de chequeos. Las reglas de layout y de alias
+# explícito en cada rama del union (que hereda los nombres de la primera) chocan con ese
+# formato sin ganar claridad.
+exclude_rules = LT01, LT02, LT05, LT09, LT11, LT14, AL03, AM04, ST06, AM06

@@ -10,7 +10,8 @@ with pedidos as (
 ),
 
 entregados as (
-    select * from pedidos where fue_entregado
+    select * from pedidos
+    where fue_entregado
 ),
 
 total_nacional as (

@@ -45,7 +45,7 @@ ventas as (
         )), 2)                                                                  as ingresos_ultimos_6m,
         round(sum(if(
             i.mes_compra between date_sub(v.ultimo_mes_completo, interval 11 month)
-                             and date_sub(v.ultimo_mes_completo, interval 6 month),
+            and date_sub(v.ultimo_mes_completo, interval 6 month),
             i.ingresos_productos, 0
         )), 2)                                                                  as ingresos_6m_previos
     from items as i
@@ -54,7 +54,9 @@ ventas as (
 ),
 
 orden_categoria as (
-    select distinct order_id, categoria
+    select distinct
+        order_id,
+        categoria
     from items
 ),
 

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Lint + validación del proyecto sin credenciales de GCP: `dbt parse` resuelve refs,
+# sources, macros y yml (detecta modelos rotos, refs inexistentes y tests mal declarados)
+# sin conectarse a BigQuery. El build completo con datos se corre localmente.
+jobs:
+  lint-and-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint SQL
+        run: sqlfluff lint models tests
+
+      - name: Write placeholder dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml <<'EOF'
+          mi_proyecto_datos:
+            target: ci
+            outputs:
+              ci:
+                type: bigquery
+                method: oauth
+                project: ci-placeholder
+                dataset: olist_ci
+                location: EU
+                threads: 1
+          EOF
+
+      - name: dbt deps
+        run: dbt deps
+
+      - name: dbt parse
+        run: dbt parse --no-partial-parse
