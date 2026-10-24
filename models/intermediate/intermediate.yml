@@ -22,3 +22,17 @@ models:
           - not_null
       - name: max_cuotas
         description: "Mayor cantidad de cuotas entre los pagos de la orden."
+
+  - name: int_items_geo
+    description: >
+      Distancia comprador-vendedor por ítem (km, aproximada por centroide de prefijo
+      postal). La comparten fct_order_items (por ítem) y fct_pedidos (máximo por orden).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - order_id
+              - order_item_id
+    columns:
+      - name: distancia_km
+        description: "Null cuando el prefijo postal del cliente o del vendedor no está en stg_geolocation (0,49% de los ítems)."

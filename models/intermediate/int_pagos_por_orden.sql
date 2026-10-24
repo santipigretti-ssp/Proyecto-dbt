@@ -2,7 +2,7 @@ with payments as (
     select * from {{ ref('stg_payments') }}
 ),
 
--- one row per order: sum all payments (an order can have multiple payment methods)
+-- una fila por orden: una orden puede pagarse con varios medios (ej. voucher + tarjeta)
 final as (
     select
         order_id,

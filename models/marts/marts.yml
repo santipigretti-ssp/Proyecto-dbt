@@ -12,45 +12,48 @@ models:
 
   - name: dim_clientes
     description: >
-      Dimensión de cliente (grano id_unico_cliente) con atributos derivados de su historia
-      de compra: recencia, frecuencia, monto y cohorte de adquisición. Reemplaza al antiguo
-      fct_clientes_rfm, que no era un hecho sino esto. No calcula quintiles de frecuencia
-      porque la distribución del dataset no los admite (90.549 clientes con 1 pedido).
+      Dimensión de cliente (grano id_unico_cliente), con TODOS los clientes, incluidos los
+      que nunca recibieron una orden, para que cualquier hecho pueda apuntar a ella. Los
+      atributos de comportamiento (recencia, frecuencia, monto, cohorte) se calculan solo
+      sobre órdenes entregadas y salen de fct_pedidos. No calcula quintiles de frecuencia
+      porque la distribución no los admite (90.549 clientes con 1 pedido).
     columns:
       - name: id_unico_cliente
         description: "ID estable del cliente real (grano de la tabla)."
         tests: [unique, not_null]
       - name: ciudad
-        description: "Ciudad de la compra más reciente del cliente."
+        description: "Ciudad de la orden más reciente del cliente."
       - name: estado
-        description: "Estado de la compra más reciente del cliente."
+        description: "Estado de la orden más reciente del cliente."
+      - name: pedidos_totales
+        description: "Órdenes del cliente en cualquier estado."
+        tests: [not_null]
       - name: frecuencia_pedidos
-        description: "Cantidad de órdenes entregadas distintas del cliente."
+        description: "Órdenes entregadas del cliente."
         tests: [not_null]
       - name: monetario_total_pagado
-        description: "Suma de lo efectivamente pagado (mercadería + flete)."
+        description: "Suma de lo pagado en órdenes entregadas (mercadería + flete). 0 si no tiene entregas."
         tests: [not_null]
       - name: ticket_promedio_pagado
-        description: "Valor promedio pagado por orden por este cliente."
+        description: "Valor promedio pagado por orden entregada."
       - name: primera_compra
-        description: "Fecha de la primera orden entregada."
-        tests: [not_null]
+        description: "Fecha de la primera orden entregada. Null si no tiene entregas."
       - name: ultima_compra
-        description: "Fecha de la orden entregada más reciente."
+        description: "Fecha de la orden entregada más reciente. Null si no tiene entregas."
+      - name: tiene_compra_entregada
+        description: "true si el cliente tiene al menos una orden entregada. Filtrar por true para métricas de clientes activos."
         tests: [not_null]
       - name: recencia_dias
-        description: "Días entre la última compra del cliente y la última fecha del dataset (no current_date(): es un dataset histórico congelado)."
-        tests: [not_null]
+        description: "Días entre la última compra y la última fecha del dataset (no current_date(): es un dataset histórico congelado)."
       - name: segmento_cliente
-        description: "'Recurrente' si compró más de una vez, 'Único' si no."
+        description: "'Recurrente' (2+ entregas), 'Único' (1) o 'Sin entregas' (0)."
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Recurrente', 'Único']
+                values: ['Recurrente', 'Único', 'Sin entregas']
       - name: cohorte_mes
-        description: "Mes de la primera compra. Clave de unión con fct_cohortes_retencion."
-        tests: [not_null]
+        description: "Mes de la primera compra entregada. Clave de unión con agg_cohortes_retencion."
 
   - name: dim_productos
     description: >
@@ -61,7 +64,7 @@ models:
         description: "ID único del producto (grano)."
         tests: [unique, not_null]
       - name: categoria
-        description: "Categoría en inglés; 'Uncategorized' si el producto no tiene traducción."
+        description: "Categoría en inglés. Las 2 categorías sin traducción oficial conservan el nombre en portugués; 'uncategorized' si el producto no tiene categoría."
         tests: [not_null]
       - name: categoria_pt
         description: "Categoría original en portugués."
@@ -104,6 +107,9 @@ models:
         tests: [unique, not_null]
       - name: anio_mes
         description: "Año y mes en formato YYYY-MM."
+      - name: dia_semana
+        description: "Nombre del día en español."
+        tests: [not_null]
       - name: es_fin_de_semana
         description: "true para sábado y domingo."
         tests: [not_null]
@@ -114,16 +120,35 @@ models:
     description: >
       HECHO a grano ORDEN (una fila por order_id, todos los estados). Contiene las métricas
       que son atributos de la orden y no del ítem: puntualidad, tramos de entrega, puntaje
-      de reseña y valor pagado. Tenerlas en su propio grano evita el error clásico de este
-      dataset: promediar días de entrega sobre un join con order_items, donde una orden de
-      5 ítems pesa 5 veces.
+      de reseña, valor pagado y distancia. Tenerlas en su propio grano evita el error
+      clásico de este dataset: promediar días de entrega sobre un join con order_items,
+      donde una orden de 5 ítems pesa 5 veces. Trae los segmentos (bucket_distancia,
+      bucket_puntualidad) precalculados para que el BI agrupe directamente.
     columns:
       - name: order_id
         description: "ID de la orden (grano de la tabla)."
         tests: [unique, not_null]
       - name: id_unico_cliente
         description: "FK a dim_clientes."
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_clientes')
+                field: id_unico_cliente
+      - name: estado_cliente
+        description: "Estado de Brasil del cliente."
+      - name: seller_id_principal
+        description: "Vendedor del ítem de mayor precio. El 98,7% de las órdenes tiene un solo vendedor."
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_vendedores')
+                field: seller_id
+      - name: estado_vendedor
+        description: "Estado del vendedor principal: el origen del envío."
+      - name: es_mismo_estado
+        description: "true si vendedor principal y cliente están en el mismo estado."
       - name: order_status
         description: "Estado de la orden."
         tests:
@@ -136,6 +161,7 @@ models:
         tests: [not_null]
       - name: mes_compra
         description: "Primer día del mes de compra."
+        tests: [not_null]
       - name: cantidad_items
         description: "Cantidad de ítems de la orden."
       - name: cantidad_vendedores
@@ -147,17 +173,19 @@ models:
       - name: valor_pagado
         description: "Lo que efectivamente pagó el cliente (mercadería + flete). Imputado como mercadería + flete en la única orden del dataset sin registro de pago; ver valor_pagado_imputado."
       - name: valor_pagado_imputado
-        description: "true si valor_pagado fue imputado por falta de registro de pago. Ocurre en 1 orden de 99.441. Sirve para excluirla si se necesita solo dato observado."
+        description: "true si valor_pagado fue imputado por falta de registro de pago. Ocurre en 1 orden de 99.441."
+      - name: distancia_km
+        description: "Distancia del ítem más lejano de la orden (aproximada: centroides de prefijo postal)."
       - name: dias_aprobacion
-        description: "Tramo 1 — compra a aprobación del pago. Responsable: plataforma."
+        description: "Tramo 1: compra → aprobación del pago. Responsable: plataforma."
       - name: dias_handling_vendedor
-        description: "Tramo 2 — aprobación a despacho al courier. Responsable: VENDEDOR."
+        description: "Tramo 2: aprobación → despacho al courier. Responsable: VENDEDOR."
       - name: dias_transito_courier
-        description: "Tramo 3 — despacho a entrega. Responsable: COURIER."
+        description: "Tramo 3: despacho → entrega. Responsable: COURIER."
       - name: dias_entrega_total
-        description: "Días entre compra y entrega."
+        description: "Días calendario entre compra y entrega."
       - name: dias_vs_promesa
-        description: "Días de diferencia entre la entrega real y la fecha estimada. Negativo = adelantado."
+        description: "Días entre la entrega real y la fecha estimada. Negativo = adelantado."
       - name: entregado_a_tiempo
         description: "true si la entrega ocurrió en o antes de la fecha estimada."
       - name: fue_entregado
@@ -170,13 +198,24 @@ models:
         description: "Puntaje promedio de las reseñas de la orden (547 órdenes tienen más de una)."
       - name: cantidad_resenas
         description: "Cantidad de reseñas distintas de la orden."
+      - name: bucket_distancia
+        description: "Rango de distancia_km."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Local (<100km)', 'Regional (100-500km)', 'Nacional (500-1500km)', 'Larga distancia (1500km+)']
+      - name: bucket_puntualidad
+        description: "Rango de dias_vs_promesa. Null si la orden no tiene fecha de entrega."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Adelantado', 'A tiempo', 'Tarde (1-3 dias)', 'Muy tarde (4+ dias)']
 
   - name: fct_order_items
     description: >
       HECHO a grano ÍTEM (order_id + order_item_id): el grano transaccional más fino del
       negocio, con FKs a las dimensiones. Permite responder preguntas nuevas sin escribir
-      un mart nuevo. Todos los agg_* salen de acá, y por eso ya no pueden discrepar entre
-      sí: hay una sola definición de ingresos, flete y distancia.
+      un mart nuevo ("ventas por categoría y mes" es un group by en el BI).
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -186,19 +225,46 @@ models:
     columns:
       - name: order_id
         description: "FK a fct_pedidos."
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_pedidos')
+                field: order_id
       - name: order_item_id
         description: "Número de ítem dentro de la orden."
         tests: [not_null]
       - name: id_unico_cliente
         description: "FK a dim_clientes."
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_clientes')
+                field: id_unico_cliente
       - name: product_id
         description: "FK a dim_productos."
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_productos')
+                field: product_id
       - name: seller_id
         description: "FK a dim_vendedores."
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendedores')
+                field: seller_id
+      - name: fecha_compra
+        description: "FK a dim_fecha."
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_fecha')
+                field: fecha
       - name: categoria
         description: "Categoría del producto (denormalizada de dim_productos)."
       - name: bucket_peso
@@ -217,49 +283,13 @@ models:
       - name: puntaje_orden
         description: "Puntaje promedio de la orden. Atributo de la ORDEN, no del ítem."
 
-  - name: fct_cohortes_retencion
-    description: >
-      Retención por cohorte de adquisición. Grano: (cohorte_mes, meses_desde_primera_compra).
-      Existe para poder leer honestamente la tasa de recompra del 3%: la ventana de
-      observación está truncada (2016-09 a 2018-08), así que un cliente de agosto 2018 tuvo
-      cero días para volver y sin embargo cuenta como no recurrente. Sin cohortes no se
-      distingue "no vuelven" de "todavía no tuvieron tiempo".
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns:
-              - cohorte_mes
-              - meses_desde_primera_compra
-    columns:
-      - name: cohorte_mes
-        description: "Mes de la primera compra del cliente."
-        tests: [not_null]
-      - name: meses_desde_primera_compra
-        description: "Meses transcurridos desde la cohorte. 0 = mes de adquisición."
-        tests: [not_null]
-      - name: clientes_cohorte
-        description: "Tamaño de la cohorte (clientes adquiridos en ese mes)."
-        tests: [not_null]
-      - name: clientes_activos
-        description: "Clientes de la cohorte que compraron en este período."
-        tests: [not_null]
-      - name: tasa_retencion
-        description: "clientes_activos / clientes_cohorte."
-        tests: [not_null]
-      - name: ingreso_por_cliente_cohorte
-        description: "Ingresos del período divididos por el tamaño original de la cohorte."
-      - name: meses_observables
-        description: "Meses de historia posterior que alcanzó a tener la cohorte dentro del dataset. CLAVE para leer la tabla: si meses_desde_primera_compra se acerca a este valor, la celda está censurada por corte de datos, no por comportamiento."
-        tests: [not_null]
-
   # -------------------------------------------------------------------- REPORTES
 
   - name: rpt_resumen_ejecutivo
     description: >
-      Una única fila con los KPIs de cabecera del dashboard. Prefijo rpt_ y no fct_ porque
-      no es un hecho: no tiene grano ni FKs, es un tablero servido. Cada métrica se calcula
-      en su propio grano y se combinan con cross join, para no inflar las métricas de orden
-      por el fan-out de ítems.
+      Una única fila con los KPIs de cabecera del dashboard. No es un hecho: no tiene grano
+      ni FKs. Cada métrica se calcula en su propio grano y se combinan con cross join, para
+      no inflar las métricas de orden por el fan-out de ítems.
     columns:
       - name: fecha_inicio
         description: "Fecha de la orden entregada más antigua."
@@ -304,65 +334,20 @@ models:
         description: "Puntaje promedio (1-5) de las órdenes entregadas."
         tests: [not_null]
       - name: tasa_clientes_recurrentes
-        description: "Proporción de clientes con más de una orden entregada."
+        description: "Proporción de clientes con 2+ órdenes entregadas, sobre los clientes con al menos una."
         tests: [not_null]
       - name: tasa_cancelacion
         description: "Proporción de órdenes canceladas o no disponibles, sobre todas las órdenes."
         tests: [not_null]
 
   # ------------------------------------------------------------------- AGREGADOS
-
-  - name: agg_ventas_ciudad
-    description: "Rendimiento económico por ubicación del cliente. Agregado de fct_pedidos."
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns:
-              - ciudad
-              - estado
-    columns:
-      - name: ciudad
-        description: "Ciudad del cliente."
-      - name: estado
-        description: "Estado del cliente."
-      - name: total_pedidos
-        description: "Órdenes entregadas."
-        tests: [not_null]
-      - name: ingresos_productos
-        description: "Mercadería vendida, sin flete."
-        tests: [not_null]
-      - name: gastos_envio_totales
-        description: "Fletes."
-        tests: [not_null]
-      - name: gmv_total
-        description: "Lo pagado por los clientes (mercadería + flete)."
-        tests: [not_null]
-      - name: es_significativo
-        description: "true si la ciudad tiene 100 pedidos o más."
-        tests: [not_null]
-
-  - name: agg_ticket_estado
-    description: "Ticket promedio y financiación por estado del cliente."
-    columns:
-      - name: estado
-        description: "Estado del cliente (grano)."
-        tests: [unique, not_null]
-      - name: total_pedidos
-        description: "Órdenes entregadas en el estado."
-        tests: [not_null]
-      - name: ticket_promedio_pagado
-        description: "Promedio de lo pagado por orden (incluye flete)."
-        tests: [not_null]
-      - name: ticket_promedio_productos
-        description: "Promedio de mercadería por orden (sin flete)."
-      - name: promedio_cuotas
-        description: "Promedio de cuotas máximas por orden."
-      - name: es_significativo
-        description: "true si el estado tiene 100 pedidos o más."
-        tests: [not_null]
+  # Convención: cada promedio o tasa viene acompañado de su conteo base
+  # (total_pedidos, pedidos_con_resena, ...) para poder ponderarlo si el BI reagrupa.
 
   - name: agg_ventas_mensual
-    description: "Evolución mensual con variación MoM y YoY. El nivel solo no dice si el negocio crece."
+    description: >
+      Evolución comercial mensual con variación MoM y YoY. Gráfico: línea de ingresos +
+      barras de ingresos_mom_pct. El nivel solo no dice si el negocio crece.
     columns:
       - name: mes
         description: "Primer día del mes de compra (grano)."
@@ -373,6 +358,9 @@ models:
       - name: clientes_unicos
         description: "Clientes únicos que compraron en el mes."
         tests: [not_null]
+      - name: clientes_nuevos
+        description: "Clientes cuya primera compra entregada fue en este mes."
+        tests: [not_null]
       - name: ingresos_productos
         description: "Mercadería vendida en el mes, sin flete."
         tests: [not_null]
@@ -382,313 +370,110 @@ models:
       - name: ingresos_mom_pct
         description: >
           Variación de ingresos vs. mes calendario anterior (join por fecha, no por fila:
-          el dataset tiene un hueco real en 2016-11 con 0 pedidos). Sin esta columna el
-          aplanamiento del negocio desde 2018-03 es invisible.
-          Queda en NULL cuando el mes actual o el anterior tienen menos de 100 pedidos
-          (toda la fase piloto, 2016-09 a 2017-01): dividir por esas bases casi cero
-          producía variaciones de cientos de miles de %, que no son señal de negocio.
-          Un NULL no dibuja barra en el BI, así que el gráfico queda limpio sin depender
-          de un filtro manual. Primer valor no nulo: 2017-02 (+109,5 %).
+          el dataset tiene un hueco real en 2016-11). NULL cuando el mes actual o el
+          anterior tienen menos de 100 pedidos (fase piloto 2016-09 a 2017-01), porque
+          dividir por esas bases da variaciones de cientos de miles de %.
       - name: pedidos_mom_pct
         description: "Igual criterio que ingresos_mom_pct, sobre cantidad de pedidos."
       - name: ingresos_yoy_pct
         description: >
-          Variación vs. mismo mes del año anterior (join por fecha). Mismo criterio de
-          NULL por base <100 pedidos que ingresos_mom_pct. Los valores de 2017 y de la
-          primera mitad de 2018 siguen siendo altos (51 % a 1.507 %) porque son reales:
-          la plataforma estaba en su primer año de hipercrecimiento, no es un artefacto
-          de cálculo. Se estabiliza a partir de mediados de 2018 (~80-100 %).
+          Variación vs. mismo mes del año anterior (join por fecha), con el mismo criterio
+          de NULL. Los valores altos de 2017-2018 son reales: primer año de hipercrecimiento.
       - name: es_mes_parcial
         description: "true para el primer y último mes, truncados por corte del dataset. Filtrar por false para leer tendencia."
         tests: [not_null]
 
-  - name: agg_ventas_categoria
+  - name: agg_operacion_mensual
     description: >
-      Ranking de categorías por ingresos: la pregunta más básica de comercial, que el
-      proyecto no respondía. Incluye participación acumulada para leer directamente
-      "las N categorías que explican el 80% de la facturación".
+      Salud operativa por mes de compra: desenlace de las órdenes, tiempos por tramo,
+      puntualidad, colchón de la promesa y satisfacción. Gráfico: líneas de tasa_atraso y
+      puntaje_promedio en el tiempo. Muestra los episodios de deterioro de 2017-11 y
+      2018-02/03 y la recuperación posterior.
     columns:
-      - name: categoria
-        description: "Categoría del producto (grano)."
+      - name: mes
+        description: "Primer día del mes de compra (grano)."
         tests: [unique, not_null]
-      - name: total_items
-        description: "Ítems vendidos de la categoría."
-        tests: [not_null]
       - name: total_pedidos
-        description: "Órdenes distintas que incluyeron la categoría."
+        description: "Órdenes del mes en cualquier estado."
         tests: [not_null]
-      - name: ingresos_productos
-        description: "Mercadería vendida de la categoría, sin flete."
-        tests: [not_null]
-      - name: ratio_flete_precio
-        description: "Flete sobre ingresos de la categoría."
-      - name: pct_ingresos
-        description: "Participación de la categoría en los ingresos totales."
-        tests: [not_null]
-      - name: pct_ingresos_acumulado
-        description: "Participación acumulada ordenando de mayor a menor."
-        tests: [not_null]
-      - name: ranking
-        description: "Posición por ingresos."
-        tests: [unique, not_null]
-
-  - name: agg_concentracion
-    description: >
-      Riesgo de concentración: qué porcentaje de la facturación depende de los pocos de
-      arriba, por vendedor y por categoría. Es pregunta directa de directorio y ninguna
-      tabla del proyecto la respondía.
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns:
-              - dimension
-              - tramo
-    columns:
-      - name: dimension
-        description: "Corte analizado: 'vendedores' o 'categorias'."
-        tests:
-          - not_null
-          - accepted_values:
-              arguments:
-                values: ['vendedores', 'categorias']
-      - name: tramo
-        description: "Tramo del ranking: Top 10, Top 1%, Top 10% o Resto."
-        tests: [not_null]
-      - name: entidades_en_tramo
-        description: "Cantidad de entidades dentro del tramo."
-        tests: [not_null]
-      - name: pct_ingresos
-        description: "Participación del tramo en los ingresos totales."
-        tests: [not_null]
-
-  - name: agg_tiempo_entrega
-    description: "Tiempos de entrega por estado, descompuestos según responsable del tramo."
-    columns:
-      - name: estado
-        description: "Estado del cliente (grano)."
-        tests: [unique, not_null]
       - name: pedidos_entregados
-        description: "Órdenes entregadas."
+        description: "Órdenes entregadas. Base de las métricas de tiempo."
         tests: [not_null]
-      - name: dias_entrega_promedio
-        description: "Promedio de días entre compra y entrega."
+      - name: pedidos_cancelados
+        description: "Órdenes canceled o unavailable."
         tests: [not_null]
-      - name: dias_entrega_p50
-        description: "Mediana. Menos sensible que el promedio a la cola de entregas de 100+ días."
-      - name: dias_entrega_p90
-        description: "Percentil 90: la promesa realista que se le puede hacer al cliente."
-      - name: dias_handling_vendedor
-        description: "Días que controla el VENDEDOR (aprobación a despacho)."
-      - name: dias_transito_courier
-        description: "Días que controla el COURIER (despacho a entrega)."
-      - name: pct_tiempo_courier
-        description: "Proporción del tiempo total que es tránsito del courier. Si es alta, exigirle más al vendedor no mueve la aguja."
-      - name: es_significativo
-        description: "true si el estado tiene 100 pedidos o más."
-        tests: [not_null]
-
-  - name: agg_estados_pedido
-    description: >
-      Distribución de TODAS las órdenes por estado terminal. Antes se llamaba
-      fct_embudo_pedidos, pero no es un embudo: no hay drop-off secuencial sino la foto
-      final de órdenes ya resueltas. Es el único agregado que no filtra a 'delivered',
-      justamente para mostrar lo que los demás esconden.
-    columns:
-      - name: order_status
-        description: "Estado de la orden (grano)."
-        tests:
-          - unique
-          - not_null
-          - accepted_values:
-              arguments:
-                values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
-      - name: total_pedidos
-        description: "Órdenes en este estado."
-        tests: [not_null]
-      - name: pct_del_total
-        description: "Proporción sobre el total de órdenes."
-        tests: [not_null]
-
-  - name: agg_satisfaccion_categoria
-    description: >
-      Satisfacción por categoría. Grano de cálculo: (orden, categoría) distinto — una orden
-      con 3 ítems de la misma categoría aporta su puntaje una sola vez. Sin ese distinct el
-      promedio quedaba ponderado por cantidad de ítems.
-    columns:
-      - name: categoria
-        description: "Categoría del producto (grano)."
-        tests: [unique, not_null]
-      - name: total_resenas
-        description: "Órdenes con reseña asociadas a la categoría."
-        tests: [not_null]
-      - name: puntaje_promedio
-        description: "Puntaje promedio (1-5), no ponderado por cantidad de ítems."
-        tests: [not_null]
-      - name: resenas_positivas
-        description: "Órdenes con puntaje 4 o 5."
-      - name: resenas_negativas
-        description: "Órdenes con puntaje 1 o 2."
-      - name: es_significativo
-        description: "true si la categoría tiene 100 reseñas o más."
-        tests: [not_null]
-
-  - name: agg_puntualidad_satisfaccion
-    description: "Cuánto cae la satisfacción a medida que la entrega se atrasa respecto de lo prometido."
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns:
-              - estado
-              - bucket_puntualidad
-    columns:
-      - name: estado
-        description: "Estado del cliente."
-        tests: [not_null]
-      - name: bucket_puntualidad
-        description: "Categoría de puntualidad según entrega real vs. estimada."
-        tests:
-          - not_null
-          - accepted_values:
-              arguments:
-                values: ['Adelantado', 'A tiempo', 'Tarde (1-3 dias)', 'Muy tarde (4+ dias)']
-      - name: total_pedidos
-        description: "Órdenes en esta combinación."
-        tests: [not_null]
-      - name: puntaje_promedio
-        description: "Puntaje promedio de esas órdenes."
-      - name: tasa_resenas_negativas
-        description: "Proporción con puntaje 1 o 2."
-
-  - name: agg_distancia_entrega
-    description: >
-      Distancia comprador-vendedor vs. flete, tiempo de entrega y satisfacción. Colapsa a
-      grano orden antes de agregar (la distancia de la orden es la del ítem más lejano),
-      porque días de entrega y puntaje son atributos de la orden y no del ítem. La distancia
-      es aproximada: centroide de prefijo postal, no dirección exacta.
-    columns:
-      - name: bucket_distancia
-        description: "Rango de distancia entre cliente y vendedor (grano)."
-        tests:
-          - unique
-          - not_null
-          - accepted_values:
-              arguments:
-                values: ['Local (<100km)', 'Regional (100-500km)', 'Nacional (500-1500km)', 'Larga distancia (1500km+)']
-      - name: total_pedidos
-        description: "Órdenes entregadas en el rango."
-        tests: [not_null]
-      - name: distancia_promedio_km
-        description: "Distancia promedio del bucket."
-        tests: [not_null]
-      - name: costo_envio_promedio
-        description: "Flete promedio por orden."
-        tests: [not_null]
-      - name: dias_entrega_promedio
-        description: "Días promedio entre compra y entrega."
-        tests: [not_null]
-      - name: tasa_atraso
-        description: "Proporción de órdenes entregadas después de la fecha estimada."
-        tests: [not_null]
-      - name: puntaje_promedio
-        description: "Puntaje promedio de las órdenes del bucket."
-
-  - name: agg_rentabilidad_flete
-    description: >
-      Cuánto erosiona el flete a los ingresos según categoría y peso facturable. El peso
-      facturable viene ya calculado (con las unidades correctas) de dim_productos.
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns:
-              - categoria
-              - bucket_peso
-    columns:
-      - name: categoria
-        description: "Categoría del producto."
-        tests: [not_null]
-      - name: bucket_peso
-        description: "Rango de peso facturable."
-        tests:
-          - not_null
-          - accepted_values:
-              arguments:
-                values: ['Liviano (<500g)', 'Medio (500g-2kg)', 'Pesado (2kg-5kg)', 'Muy pesado (5kg+)']
-      - name: total_items
-        description: "Ítems vendidos en la combinación."
-        tests: [not_null]
-      - name: ingresos_productos
-        description: "Mercadería vendida, sin flete."
-        tests: [not_null]
-      - name: gastos_envio_totales
-        description: "Fletes pagados."
-        tests: [not_null]
-      - name: ratio_flete_precio
-        description: "Flete sobre ingresos: a mayor valor, más erosiona el margen."
-      - name: peso_facturable_promedio_g
-        description: "Peso facturable promedio del grupo, en gramos."
-
-  - name: agg_rendimiento_vendedores
-    description: >
-      Scorecard por vendedor. Combina el grano ítem (ingresos) con el grano orden
-      (puntualidad y satisfacción), para no ponderar la calidad por cantidad de ítems.
-    columns:
-      - name: seller_id
-        description: "ID del vendedor (grano)."
-        tests: [unique, not_null]
-      - name: ciudad
-        description: "Ciudad del vendedor."
-      - name: estado
-        description: "Estado del vendedor."
-      - name: total_pedidos
-        description: "Órdenes entregadas con ítems de este vendedor."
-        tests: [not_null]
-      - name: ingresos_productos
-        description: "Mercadería vendida por el vendedor, sin flete."
-        tests: [not_null]
-      - name: precio_promedio_item
-        description: "Precio promedio por ÍTEM (no por orden)."
-      - name: dias_entrega_promedio
-        description: "Días promedio de entrega de sus órdenes."
-      - name: tasa_atraso
-        description: "Proporción de sus órdenes entregadas tarde."
-      - name: puntaje_promedio
-        description: "Puntaje promedio de las órdenes que incluyeron sus ítems."
-      - name: total_pedidos_todos
-        description: "Órdenes en CUALQUIER estado. Sin sesgo de supervivencia, a diferencia de total_pedidos."
+      - name: pedidos_sin_entregar
+        description: "Órdenes que no se entregaron ni se cancelaron (shipped, invoiced, processing, ...)."
         tests: [not_null]
       - name: tasa_cancelacion
-        description: "Proporción de sus órdenes canceladas o no disponibles."
+        description: "pedidos_cancelados / total_pedidos."
         tests: [not_null]
+      - name: dias_entrega_p50
+        description: "Mediana de días de entrega."
+      - name: dias_entrega_p90
+        description: "Percentil 90 de días de entrega."
+      - name: dias_handling_vendedor
+        description: "Promedio del tramo que controla el VENDEDOR."
+      - name: dias_transito_courier
+        description: "Promedio del tramo que controla el COURIER."
+      - name: pedidos_con_promesa
+        description: "Entregadas con fecha real y estimada: base de tasa_atraso."
+      - name: tasa_atraso
+        description: "Proporción de entregadas que llegaron después de la fecha estimada."
+      - name: colchon_promesa_dias
+        description: "Días promedio que la promesa le dio de más al cliente. Positivo = llegó antes."
+      - name: pedidos_con_resena
+        description: "Entregadas con reseña: base de puntaje_promedio."
+      - name: puntaje_promedio
+        description: "Puntaje promedio (1-5) de las entregadas."
+      - name: tasa_resenas_negativas
+        description: "Proporción de reseñas con puntaje 1 o 2."
       - name: es_significativo
-        description: "true si el vendedor tiene 20 pedidos o más. Sin este filtro el ranking lo dominan vendedores con 1 venta."
+        description: "true si el mes tiene 100 entregas o más."
         tests: [not_null]
 
   - name: agg_metodos_pago
-    description: "Distribución de medios de pago en órdenes entregadas."
+    description: >
+      Mix de medios de pago por mes, sobre órdenes entregadas. Gráfico: barras apiladas
+      100% de pct_pedidos_mes. Sumar las filas de un medio entre meses da su total histórico.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - mes
+              - tipo_pago
     columns:
+      - name: mes
+        description: "Primer día del mes de compra."
+        tests: [not_null]
       - name: tipo_pago
-        description: "Medio de pago (grano)."
+        description: "Medio de pago."
         tests:
-          - unique
           - not_null
           - accepted_values:
               arguments:
                 values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
-      - name: total_pedidos
-        description: "Órdenes distintas pagadas con este medio. OJO: la suma NO da el total de órdenes, porque una orden puede usar varios medios."
+      - name: pedidos
+        description: "Órdenes distintas pagadas con este medio en el mes. Sumar entre medios NO da el total del mes: una orden puede usar varios."
         tests: [not_null]
-      - name: pct_ordenes
-        description: "Proporción sobre el total real de órdenes. Suma más de 1 por las órdenes multi-medio."
+      - name: pct_pedidos_mes
+        description: "pedidos / órdenes del mes. Suma más de 1 entre medios por las órdenes multi-medio."
+        tests: [not_null]
+      - name: transacciones
+        description: "Filas de pago (una orden puede tener varias con el mismo medio)."
         tests: [not_null]
       - name: volumen_pagado
-        description: "Total pagado con este medio."
+        description: "Total pagado con este medio en el mes."
+        tests: [not_null]
+      - name: pct_volumen_mes
+        description: "Participación del medio en el volumen del mes. Suma 1 entre medios."
         tests: [not_null]
       - name: valor_promedio_transaccion
         description: "Valor promedio por TRANSACCIÓN de pago, no por orden."
       - name: promedio_cuotas
         description: "Promedio de cuotas, SOLO para credit_card (null en el resto): los demás medios son siempre 1 cuota."
-      - name: pedidos_en_cuotas
-        description: "Pagos con más de 1 cuota."
+      - name: transacciones_en_cuotas
+        description: "Transacciones con más de 1 cuota."
 
   - name: agg_take_rate
     description: >
@@ -720,4 +505,296 @@ models:
         tests: [not_null]
       - name: take_rate_efectivo
         description: "margen / GMV: qué porcentaje del volumen se queda la plataforma."
+        tests: [not_null]
+
+  - name: agg_estados_cliente
+    description: >
+      Scorecard por estado del cliente: comercial, logística (con el tramo de cada
+      responsable), promesa, satisfacción y cancelación en una fila por estado. Gráfico:
+      mapa de Brasil con iso_3166_2 como dimensión geográfica.
+    columns:
+      - name: estado
+        description: "Sigla del estado del cliente (grano)."
+        tests: [unique, not_null]
+      - name: iso_3166_2
+        description: "Código ISO del estado ('BR-SP'): lo reconocen Looker Studio y Tableau como región geográfica."
+        tests: [unique, not_null]
+      - name: region
+        description: "Región IBGE (Norte, Nordeste, Centro-Oeste, Sudeste, Sur)."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sur']
+      - name: total_pedidos
+        description: "Órdenes entregadas. Base de los promedios."
+        tests: [not_null]
+      - name: gmv_total
+        description: "Lo pagado por los clientes del estado (mercadería + flete)."
+        tests: [not_null]
+      - name: pct_gmv_nacional
+        description: "Participación del estado en el GMV nacional."
+        tests: [not_null]
+      - name: ticket_promedio_pagado
+        description: "Promedio pagado por orden (incluye flete)."
+      - name: promedio_cuotas
+        description: "Promedio de cuotas máximas por orden."
+      - name: ratio_flete_precio
+        description: "Flete sobre mercadería: cuánto encarece el envío la compra en ese estado."
+      - name: distancia_promedio_km
+        description: "Distancia promedio desde el vendedor."
+      - name: pct_pedidos_mismo_estado
+        description: "Proporción de pedidos despachados desde el mismo estado."
+      - name: dias_entrega_p50
+        description: "Mediana de días de entrega."
+      - name: dias_entrega_p90
+        description: "Percentil 90: la promesa realista para ese estado."
+      - name: dias_handling_vendedor
+        description: "Días que controla el VENDEDOR."
+      - name: dias_transito_courier
+        description: "Días que controla el COURIER."
+      - name: pct_tiempo_courier
+        description: "Proporción del tiempo total que es tránsito del courier."
+      - name: tasa_atraso
+        description: "Proporción de entregas posteriores a la fecha estimada."
+      - name: colchon_promesa_dias
+        description: "Días promedio que la promesa le da de más al cliente."
+      - name: puntaje_promedio
+        description: "Puntaje promedio (1-5)."
+      - name: tasa_resenas_negativas
+        description: "Proporción de reseñas con puntaje 1 o 2."
+      - name: tasa_cancelacion
+        description: "Sobre TODAS las órdenes del estado, no solo las entregadas."
+      - name: es_significativo
+        description: "true si el estado tiene 100 entregas o más."
+        tests: [not_null]
+
+  - name: agg_rutas_logisticas
+    description: >
+      Matriz origen → destino (estado del vendedor principal × estado del cliente) sobre
+      órdenes entregadas. Gráfico: heatmap. Dice qué corredores concentran el volumen y en
+      cuáles se disparan flete, demora y atraso.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - estado_origen
+              - estado_destino
+    columns:
+      - name: estado_origen
+        description: "Estado del vendedor principal."
+        tests: [not_null]
+      - name: estado_destino
+        description: "Estado del cliente."
+        tests: [not_null]
+      - name: es_mismo_estado
+        description: "true si origen y destino coinciden."
+        tests: [not_null]
+      - name: total_pedidos
+        description: "Órdenes entregadas en la ruta. Base de los promedios."
+        tests: [not_null]
+      - name: pct_pedidos
+        description: "Participación de la ruta en el total de entregas."
+        tests: [not_null]
+      - name: ingresos_productos
+        description: "Mercadería vendida en la ruta, sin flete."
+        tests: [not_null]
+      - name: costo_envio_promedio
+        description: "Flete promedio por orden."
+      - name: ratio_flete_precio
+        description: "Flete sobre mercadería."
+      - name: distancia_promedio_km
+        description: "Distancia promedio (centroides de prefijo postal)."
+      - name: dias_entrega_promedio
+        description: "Días promedio entre compra y entrega."
+      - name: tasa_atraso
+        description: "Proporción de entregas posteriores a la fecha estimada."
+      - name: puntaje_promedio
+        description: "Puntaje promedio (1-5)."
+      - name: es_significativo
+        description: "true si la ruta tiene 50 entregas o más."
+        tests: [not_null]
+
+  - name: agg_puntualidad_satisfaccion
+    description: >
+      Curva de satisfacción según los días de diferencia entre entrega real y prometida
+      (-20 a +20; los extremos acumulan la cola). Gráfico: línea o barras de
+      puntaje_promedio por dias_vs_promesa. El puntaje es estable mientras el pedido llega
+      antes y cae fuerte desde el primer día de atraso.
+    columns:
+      - name: dias_vs_promesa
+        description: "Días de diferencia, recortado a [-20, 20] (grano)."
+        tests: [unique, not_null]
+      - name: etiqueta
+        description: "Texto para el eje del gráfico ('3 días tarde', 'En la fecha', ...)."
+        tests: [not_null]
+      - name: bucket_puntualidad
+        description: "Bucket de fct_pedidos al que pertenece el valor."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Adelantado', 'A tiempo', 'Tarde (1-3 dias)', 'Muy tarde (4+ dias)']
+      - name: total_pedidos
+        description: "Órdenes entregadas con esa diferencia."
+        tests: [not_null]
+      - name: pct_pedidos
+        description: "Participación sobre las entregas con fecha estimada."
+        tests: [not_null]
+      - name: pedidos_con_resena
+        description: "Base de puntaje_promedio."
+      - name: puntaje_promedio
+        description: "Puntaje promedio (1-5)."
+      - name: tasa_resenas_negativas
+        description: "Proporción con puntaje 1 o 2."
+      - name: tasa_resenas_positivas
+        description: "Proporción con puntaje 4 o 5."
+
+  - name: agg_categorias
+    description: >
+      Scorecard por categoría: ventas, participación y pareto, flete, entrega, satisfacción
+      y crecimiento de los últimos 6 meses. Gráficos: scatter ingresos vs. puntaje, pareto
+      con pct_ingresos_acumulado. Entrega y satisfacción se calculan sobre pares (orden,
+      categoría) distintos para no ponderar por cantidad de ítems.
+    columns:
+      - name: ranking
+        description: "Posición por ingresos."
+        tests: [unique, not_null]
+      - name: categoria
+        description: "Categoría del producto (grano)."
+        tests: [unique, not_null]
+      - name: total_items
+        description: "Ítems vendidos."
+        tests: [not_null]
+      - name: total_pedidos
+        description: "Órdenes distintas que incluyeron la categoría."
+        tests: [not_null]
+      - name: ingresos_productos
+        description: "Mercadería vendida, sin flete."
+        tests: [not_null]
+      - name: pct_ingresos
+        description: "Participación en los ingresos totales."
+        tests: [not_null]
+      - name: pct_ingresos_acumulado
+        description: "Participación acumulada ordenando de mayor a menor."
+        tests: [not_null]
+      - name: ratio_flete_precio
+        description: "Flete sobre ingresos: a mayor valor, más erosiona el margen."
+      - name: peso_facturable_promedio_g
+        description: "Peso facturable promedio por ítem, en gramos."
+      - name: tasa_atraso
+        description: "Proporción de órdenes con la categoría entregadas tarde."
+      - name: pedidos_con_resena
+        description: "Base de puntaje_promedio."
+      - name: puntaje_promedio
+        description: "Puntaje promedio (1-5), no ponderado por cantidad de ítems."
+      - name: tasa_resenas_negativas
+        description: "Proporción de reseñas con puntaje 1 o 2."
+      - name: ingresos_ultimos_6m
+        description: "Ingresos de los últimos 6 meses completos del dataset."
+      - name: ingresos_6m_previos
+        description: "Ingresos de los 6 meses anteriores a esa ventana."
+      - name: crecimiento_6m_pct
+        description: "Variación entre ambas ventanas. NULL si la base anterior es menor a R$ 10.000."
+      - name: es_significativo
+        description: "true si la categoría tiene 100 pedidos o más."
+        tests: [not_null]
+
+  - name: agg_vendedores
+    description: >
+      Scorecard por vendedor + curva de concentración. Gráficos: curva de Lorenz
+      (pct_vendedores_acumulado vs. pct_ingresos_acumulado), tabla de ranking, scatter de
+      handling vs. puntaje. Ingresos a grano ítem; calidad a grano (vendedor, orden).
+    columns:
+      - name: seller_id
+        description: "ID del vendedor (grano)."
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendedores')
+                field: seller_id
+      - name: region
+        description: "Región IBGE del vendedor."
+      - name: categoria_principal
+        description: "Categoría que más ingresos le genera."
+      - name: meses_con_ventas
+        description: "Meses distintos con al menos una venta entregada."
+        tests: [not_null]
+      - name: total_pedidos
+        description: "Órdenes entregadas con ítems de este vendedor."
+        tests: [not_null]
+      - name: ingresos_productos
+        description: "Mercadería vendida por el vendedor, sin flete."
+        tests: [not_null]
+      - name: precio_promedio_item
+        description: "Precio promedio por ÍTEM (no por orden)."
+      - name: ranking
+        description: "Posición por ingresos."
+        tests: [unique, not_null]
+      - name: pct_ingresos
+        description: "Participación en los ingresos totales."
+        tests: [not_null]
+      - name: pct_ingresos_acumulado
+        description: "Participación acumulada hasta este vendedor (eje Y de la curva de Lorenz)."
+        tests: [not_null]
+      - name: pct_vendedores_acumulado
+        description: "ranking / total de vendedores (eje X de la curva de Lorenz)."
+        tests: [not_null]
+      - name: tramo_concentracion
+        description: "Tramo EXCLUYENTE del ranking, con el rango en el nombre. Para leer acumulados usar pct_ingresos_acumulado."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Top 1%', 'Top 1-10%', 'Top 10-50%', 'Bottom 50%']
+      - name: dias_handling_vendedor
+        description: "Días promedio de aprobación a despacho: el único tramo que controla el vendedor."
+      - name: tasa_atraso
+        description: "Proporción de sus órdenes entregadas tarde."
+      - name: puntaje_promedio
+        description: "Puntaje promedio de las órdenes que incluyeron sus ítems."
+      - name: total_pedidos_todos
+        description: "Órdenes en CUALQUIER estado. Sin sesgo de supervivencia, a diferencia de total_pedidos."
+        tests: [not_null]
+      - name: tasa_cancelacion
+        description: "Proporción de sus órdenes canceladas o no disponibles."
+        tests: [not_null]
+      - name: es_significativo
+        description: "true si el vendedor tiene 20 pedidos o más. Sin este filtro el ranking de calidad lo dominan vendedores con 1 venta."
+        tests: [not_null]
+
+  - name: agg_cohortes_retencion
+    description: >
+      Retención por cohorte de adquisición. Grano: (cohorte_mes, meses_desde_primera_compra).
+      Gráfico: heatmap de cohortes. Permite leer honestamente la recompra del 3%: la
+      ventana está truncada (2016-09 a 2018-08) y sin cohortes no se distingue "no vuelven"
+      de "todavía no tuvieron tiempo".
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - cohorte_mes
+              - meses_desde_primera_compra
+    columns:
+      - name: cohorte_mes
+        description: "Mes de la primera compra del cliente."
+        tests: [not_null]
+      - name: meses_desde_primera_compra
+        description: "Meses transcurridos desde la cohorte. 0 = mes de adquisición."
+        tests: [not_null]
+      - name: clientes_cohorte
+        description: "Tamaño de la cohorte (clientes adquiridos en ese mes)."
+        tests: [not_null]
+      - name: clientes_activos
+        description: "Clientes de la cohorte que compraron en este período."
+        tests: [not_null]
+      - name: tasa_retencion
+        description: "clientes_activos / clientes_cohorte."
+        tests: [not_null]
+      - name: ingreso_por_cliente_cohorte
+        description: "Ingresos del período divididos por el tamaño original de la cohorte."
+      - name: meses_observables
+        description: "Meses de historia posterior que alcanzó a tener la cohorte dentro del dataset. Si meses_desde_primera_compra se acerca a este valor, la celda está censurada por corte de datos, no por comportamiento."
         tests: [not_null]

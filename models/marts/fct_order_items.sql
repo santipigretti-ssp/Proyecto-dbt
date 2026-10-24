@@ -5,11 +5,15 @@
 -- esta tabla responde preguntas nuevas sin escribir un mart nuevo: "ventas por categoría
 -- y mes", "atraso por vendedor y estado", etc. se resuelven en el BI con un group by.
 --
--- Los agregados agg_* de esta capa salen de acá, y por eso ya no pueden discrepar entre
--- sí: hay una sola definición de ingresos, flete y distancia, calculada una sola vez.
+-- Los agregados agg_* salen de acá o de fct_pedidos, y por eso no pueden discrepar
+-- entre sí: hay una sola definición de ingresos, flete y distancia.
 
 with items as (
     select * from {{ ref('stg_order_items') }}
+),
+
+items_geo as (
+    select * from {{ ref('int_items_geo') }}
 ),
 
 pedidos as (
@@ -22,14 +26,6 @@ productos as (
 
 vendedores as (
     select * from {{ ref('dim_vendedores') }}
-),
-
-geo as (
-    select * from {{ ref('stg_geolocation') }}
-),
-
-customers as (
-    select * from {{ ref('stg_customers') }}
 ),
 
 final as (
@@ -58,12 +54,8 @@ final as (
         i.monto                                     as ingresos_productos,
         i.costo_envio                               as gastos_envio,
 
-        -- distancia comprador-vendedor de ESTE ítem (aproximada: centroide de prefijo
-        -- postal, no dirección exacta)
-        st_distance(
-            st_geogpoint(gc.lng_promedio, gc.lat_promedio),
-            st_geogpoint(gv.lng_promedio, gv.lat_promedio)
-        ) / 1000                                    as distancia_km,
+        -- distancia comprador-vendedor de ESTE ítem (aproximada, ver int_items_geo)
+        g.distancia_km,
 
         -- atributos de la orden, NO aditivos a este grano: sirven para filtrar y
         -- segmentar, pero nunca para promediar sin colapsar antes a nivel orden
@@ -74,9 +66,8 @@ final as (
     inner join pedidos as p    on i.order_id = p.order_id
     inner join productos as pr on i.product_id = pr.product_id
     inner join vendedores as v on i.seller_id = v.seller_id
-    inner join customers as c  on p.customer_id = c.customer_id
-    left join geo as gc        on c.cp_cliente = gc.cp_prefix
-    left join geo as gv        on v.cp_vendedor = gv.cp_prefix
+    left join items_geo as g
+        on i.order_id = g.order_id and i.order_item_id = g.order_item_id
 )
 
 select * from final

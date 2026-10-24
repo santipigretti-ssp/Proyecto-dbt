@@ -4,7 +4,7 @@
 -- Olist es un marketplace: su facturación no es el GMV que circula sino la comisión
 -- sobre ese GMV. El dataset no expone la comisión, así que se modela con supuestos
 -- declarados en dbt_project.yml (vars), recalculables sin tocar SQL:
---     dbt run --select agg_take_rate --vars '{take_rate_comision: 0.18}'
+--     dbt build --select agg_take_rate --vars '{take_rate_comision: 0.18}'
 
 {% set comision = var('take_rate_comision') %}
 {% set tarifa_pago = var('take_rate_tarifa_pago') %}

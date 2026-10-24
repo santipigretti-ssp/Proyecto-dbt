@@ -26,7 +26,9 @@ final as (
         date_trunc(dia, month)                         as primer_dia_mes,
         extract(quarter from dia)                      as trimestre,
         extract(dayofweek from dia)                    as dia_semana_num,
-        format_date('%A', dia)                         as dia_semana,
+        -- format_date('%A') devuelve el nombre en inglés y BigQuery no tiene locale
+        ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+            [offset(extract(dayofweek from dia) - 1)]  as dia_semana,
         extract(dayofweek from dia) in (1, 7)          as es_fin_de_semana
     from fechas
 )

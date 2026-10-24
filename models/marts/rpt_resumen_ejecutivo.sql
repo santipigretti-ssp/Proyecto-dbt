@@ -1,8 +1,7 @@
 {{ config(materialized='table') }}
 
--- REPORTE de una sola fila con los KPIs de cabecera del dashboard.
--- Prefijo rpt_ y no fct_ porque no es una tabla de hechos: no tiene grano (es 1 fila) ni
--- claves foráneas, es un tablero servido.
+-- REPORTE de una sola fila con los KPIs de cabecera del dashboard. No tiene grano ni
+-- claves foráneas: es un tablero servido, de ahí el prefijo rpt_.
 --
 -- Cada métrica se calcula en su propio grano y recién al final se combinan con cross join.
 -- Calcularlas todas sobre un único join de órdenes + ítems inflaría las métricas de orden
@@ -57,11 +56,11 @@ metricas_ontime_global as (
     where order_status not in ('created', 'approved', 'invoiced', 'processing')
 ),
 
--- grano: cliente único
+-- grano: cliente único con al menos una orden entregada
 metricas_clientes as (
     select round(safe_divide(
         countif(segmento_cliente = 'Recurrente'),
-        count(*)
+        countif(tiene_compra_entregada)
     ), 4) as tasa_clientes_recurrentes
     from clientes
 ),
