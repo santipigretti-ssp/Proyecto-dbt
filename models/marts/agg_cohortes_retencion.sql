@@ -2,11 +2,10 @@
 
 -- Retención por cohorte de adquisición. Grano: (cohorte_mes, meses_desde_primera_compra).
 --
--- Por qué existe: el proyecto reporta una tasa de recompra del 3% y la explica como
--- "característica del marketplace". Es cierto, pero incompleto: la ventana de observación
--- está TRUNCADA (2016-09 a 2018-08). Un cliente que compró en agosto 2018 tuvo cero días
--- para volver, y sin embargo cuenta como "no recurrente" en el 3%. Sin curva de cohortes
--- no se puede distinguir "no vuelven" de "todavía no tuvieron tiempo de volver".
+-- Por qué existe: la tasa de recompra global (3%) se calcula sobre una ventana TRUNCADA
+-- (2016-09 a 2018-08). Un cliente que compró en agosto 2018 tuvo cero días para volver y
+-- sin embargo cuenta como "no recurrente". La curva de cohortes separa "no vuelven" de
+-- "todavía no tuvieron tiempo de volver".
 --
 -- La columna meses_observables es la clave para leer esta tabla honestamente: si vale 0,
 -- la celda no tiene información, no es un 0% de retención.
@@ -66,7 +65,7 @@ final as (
         -- cuántos meses de historia posterior alcanzó a tener esta cohorte dentro del
         -- dataset: si meses_desde_primera_compra se acerca a este número, la celda está
         -- censurada por corte de datos y no por comportamiento del cliente
-        date_diff((select ultimo_mes from fin_dataset), a.cohorte_mes, month) as meses_observables
+        date_diff((select fd.ultimo_mes from fin_dataset as fd), a.cohorte_mes, month) as meses_observables
     from actividad as a
     inner join tamano_cohorte as t on a.cohorte_mes = t.cohorte_mes
 )

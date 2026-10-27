@@ -1,0 +1,31 @@
+[sqlfluff]
+dialect = bigquery
+# Templater jinja (no dbt) para que el lint corra en CI sin credenciales de BigQuery:
+# ref/source/config/var los provee sqlfluff y las macros del proyecto se cargan de macros/.
+templater = jinja
+max_line_length = 140
+# LT01: los alias van alineados en columna a propósito (se leen como una tabla).
+# AM04: `select *` en las CTEs de importación es el patrón estándar de dbt.
+# ST06: el orden de columnas sigue el orden lógico del modelo (clave, FKs, métricas).
+# AM06: group by posicional (group by 1, 2) y order by por nombre conviven a propósito.
+exclude_rules = LT01, AM04, ST06, AM06
+
+[sqlfluff:templater:jinja]
+apply_dbt_builtins = True
+load_macros_from_path = macros
+
+[sqlfluff:templater:jinja:context]
+take_rate_comision = 0.15
+take_rate_tarifa_pago = 0.03
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.types]
+extended_capitalisation_policy = lower

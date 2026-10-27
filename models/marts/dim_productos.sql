@@ -11,7 +11,9 @@ final as (
     select
         product_id,
         product_category_name                     as categoria_pt,
-        coalesce(categoria_en, 'Uncategorized')   as categoria,
+        -- 2 categorías no tienen traducción en el CSV oficial: conservan su nombre en
+        -- portugués en vez de mezclarse con los productos sin categoría
+        coalesce(categoria_en, product_category_name, 'uncategorized') as categoria,
         peso_g,
         largo_cm,
         alto_cm,
